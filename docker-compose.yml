@@ -1,33 +1,22 @@
-version: "3.8"
-
 services:
   mysql:
     image: mysql:8
+    container_name: bikeshare-mysql
     environment:
-      MYSQL_DATABASE: bikeshare
+      MYSQL_DATABASE: bike_share_db
+      MYSQL_USER: bikeshare
+      MYSQL_PASSWORD: bikeshare
       MYSQL_ROOT_PASSWORD: root
     ports:
-      - "3306:3306"
+      - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-
-  backend:
-    build: ./backend
-    ports:
-      - "8080:8080"
-    depends_on:
-      - mysql
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/bikeshare
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: root
-
-  frontend:
-    build: ./frontend
-    ports:
-      - "4200:80"
-    depends_on:
-      - backend
+      - ./database:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-pbikeshare"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
 volumes:
   mysql_data:
