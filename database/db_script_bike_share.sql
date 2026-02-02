@@ -41,7 +41,7 @@ start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 expiry_time TIMESTAMP,
 status ENUM('PENDING', 'ACTIVE', 'COMPLETED', 'CANCELLED') DEFAULT 'PENDING',
 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-FOREIGN KEY (bike_id) REFERENCES bikeS(id) ON DELETE CASCADE
+FOREIGN KEY (bike_id) REFERENCES bikes(id) ON DELETE CASCADE
 )ENGINE=InnoDB;
 
 -- 5. Payments table (History and Audit Trail)
@@ -61,15 +61,11 @@ FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE SET NULL
 
 /*
 PRIMARY KEYS
-
-
 users,id,BIGINT,Unique ID for each Rider or Admin.
 stations,id,BIGINT,Unique ID for each physical bike station.
 bikes,id,BIGINT,Unique ID for the bike (internal database use).
 bookings,id,BIGINT,Unique ID for each rental transaction/session.
 payments,id,BIGINT,Unique ID for each financial transaction/receipt.
-
-
 */
 
 
