@@ -61,15 +61,11 @@ FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE SET NULL
 
 /*
 PRIMARY KEYS
-
-
 users,id,BIGINT,Unique ID for each Rider or Admin.
 stations,id,BIGINT,Unique ID for each physical bike station.
 bikes,id,BIGINT,Unique ID for the bike (internal database use).
 bookings,id,BIGINT,Unique ID for each rental transaction/session.
 payments,id,BIGINT,Unique ID for each financial transaction/receipt.
-
-
 */
 
 
