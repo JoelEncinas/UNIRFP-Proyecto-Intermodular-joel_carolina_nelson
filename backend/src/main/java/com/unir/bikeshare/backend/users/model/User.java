@@ -1,5 +1,6 @@
 package com.unir.bikeshare.backend.users.model;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 
 import jakarta.persistence.Column;
@@ -33,6 +34,9 @@ public class User {
     @Column(name="role", nullable=false)
     private UserRole role = UserRole.RIDER;
 	
+	@Column(name="balance", precision = 10, scale = 2, nullable = false)
+    private BigDecimal balance = BigDecimal.ZERO;
+	
 	// TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -58,6 +62,9 @@ public class User {
 
     public UserRole getRole() { return role; }
     public void setRole(UserRole role) { this.role = role; }
+    
+    public BigDecimal getBalance() { return balance; }
+    public void setBalance(BigDecimal balance) { this.balance = balance; }
 
     public Instant getCreatedAt() { return createdAt; }
 }
