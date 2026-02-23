@@ -1,5 +1,6 @@
 package com.unir.bikeshare.backend.users.dto;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 
 import com.unir.bikeshare.backend.users.model.UserRole;
@@ -9,5 +10,6 @@ public record UserResponse(
         String username,
         String email,
         UserRole role,
+        BigDecimal balance,
         Instant createdAt
         ) {}
