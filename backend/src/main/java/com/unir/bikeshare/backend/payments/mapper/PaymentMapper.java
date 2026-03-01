@@ -31,6 +31,7 @@ public class PaymentMapper {
                 payment.getSandboxReference(),
                 payment.getPaymentMethod(),
                 payment.getTransactionType(),
+                payment.getPaymentStatus(),
                 payment.getPaymentDate()
         );
     }

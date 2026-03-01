@@ -55,6 +55,10 @@ public class Payment {
     @Enumerated(EnumType.STRING)
     @Column(name = "transaction_type", nullable = false)
     private TransactionType transactionType;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_status", nullable = false)
+    private PaymentStatus paymentStatus;
 
     // TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     @Column(name = "payment_date", nullable = false, updatable = false)
@@ -63,6 +67,7 @@ public class Payment {
     @PrePersist
     private void prePersist() {
         if (paymentDate == null) paymentDate = Instant.now();
+        if (paymentStatus == null) paymentStatus = PaymentStatus.PENDING;
     }
 
     // ===== getters / setters =====
@@ -89,6 +94,9 @@ public class Payment {
 
     public TransactionType getTransactionType() { return transactionType; }
     public void setTransactionType(TransactionType transactionType) { this.transactionType = transactionType; }
+    
+    public PaymentStatus getPaymentStatus() { return paymentStatus; }
+    public void setPaymentStatus(PaymentStatus paymentStatus) { this.paymentStatus = paymentStatus; }
 
     public Instant getPaymentDate() { return paymentDate; }
     public void setPaymentDate(Instant paymentDate) { this.paymentDate = paymentDate; }
