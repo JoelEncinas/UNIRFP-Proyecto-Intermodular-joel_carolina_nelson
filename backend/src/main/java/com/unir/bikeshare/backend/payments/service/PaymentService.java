@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.unir.bikeshare.backend.bookings.model.Booking;
 import com.unir.bikeshare.backend.bookings.repository.BookingRepository;
@@ -19,7 +20,6 @@ import com.unir.bikeshare.backend.payments.repository.PaymentRepository;
 import com.unir.bikeshare.backend.users.model.User;
 import com.unir.bikeshare.backend.users.repository.UserRepository;
 
-import jakarta.transaction.Transactional;
 
 @Service
 @Transactional
