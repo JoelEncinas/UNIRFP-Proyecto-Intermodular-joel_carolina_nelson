@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.unir.bikeshare.backend.payments.dto.PaymentCreateRequest;
 import com.unir.bikeshare.backend.payments.dto.PaymentResponse;
+import com.unir.bikeshare.backend.payments.dto.PaymentWebhookRequest;
 import com.unir.bikeshare.backend.payments.service.PaymentService;
 
 import jakarta.validation.Valid;
@@ -46,5 +47,12 @@ public class PaymentController {
     @ResponseStatus(HttpStatus.CREATED)
     public PaymentResponse create(@RequestBody @Valid PaymentCreateRequest req) {
         return paymentService.create(req);
+    }
+    
+    //webhook falso, nos sirve para confirmar pagos de fuera de la app mientras no tenemos paypal/stripe
+    
+    @PostMapping("/webhook")
+    public PaymentResponse webhook(@RequestBody @Valid PaymentWebhookRequest req) {
+        return paymentService.confirmWebhook(req);
     }
 }

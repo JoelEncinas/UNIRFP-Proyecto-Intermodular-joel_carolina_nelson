@@ -2,6 +2,7 @@ package com.unir.bikeshare.backend.payments.repository;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -16,4 +17,6 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     List<Payment> findByTransactionType(TransactionType transactionType);
 
     List<Payment> findByUserIdAndPaymentDateBetween(Long userId, Instant from, Instant to);
+
+    Optional<Payment> findBySandboxReference(String sandboxReference);
 }
