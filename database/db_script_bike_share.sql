@@ -54,6 +54,7 @@ provider VARCHAR(50),  -- Ejemplo: Paypal o Stripe
 sandbox_reference VARCHAR(100),
 payment_method ENUM('CREDIT_CARD', 'PAYPAL', 'APP_CREDIT') NOT NULL, 
 transaction_type ENUM('TOP_UP', 'RENTAL_PAYMENT') NOT NULL,
+payment_status ENUM('PENDING','SUCCESS','FAILED','CANCELLED') NOT NULL DEFAULT 'PENDING',
 payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
 FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE SET NULL
