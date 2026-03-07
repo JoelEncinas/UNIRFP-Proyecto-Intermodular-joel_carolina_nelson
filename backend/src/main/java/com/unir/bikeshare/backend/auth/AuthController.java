@@ -45,10 +45,15 @@ public class AuthController {
 
   @PostMapping("/login")
   public AuthReponseDTO login(@RequestBody LoginRequestDTO request) {
-    authenticationManager.authenticate(
-        new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword()));
 
-    String token = jwtService.generateToken(request.getUsername());
+    Authentication authentication = authenticationManager.authenticate(
+        new UsernamePasswordAuthenticationToken(
+            request.getUsername(),
+            request.getPassword()));
+
+    String username = authentication.getName();
+    String token = jwtService.generateToken(username);
+
     return new AuthReponseDTO(token);
   }
 

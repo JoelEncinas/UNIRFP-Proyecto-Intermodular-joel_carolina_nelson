@@ -5,7 +5,6 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.stereotype.Service;
 
-import java.security.Key;
 import javax.crypto.SecretKey;
 import java.util.Date;
 
@@ -28,6 +27,7 @@ public class JwtService {
   }
 
   public String extractUsername(String token) {
+
     Claims claims = Jwts.parser()
         .verifyWith(getSigningKey())
         .build()
@@ -38,6 +38,22 @@ public class JwtService {
   }
 
   public boolean isTokenValid(String token, String username) {
-    return extractUsername(token).equals(username);
+
+    final String extractedUsername = extractUsername(token);
+
+    return extractedUsername.equals(username)
+        && !isTokenExpired(token);
+  }
+
+  private boolean isTokenExpired(String token) {
+
+    Date expiration = Jwts.parser()
+        .verifyWith(getSigningKey())
+        .build()
+        .parseSignedClaims(token)
+        .getPayload()
+        .getExpiration();
+
+    return expiration.before(new Date());
   }
 }
