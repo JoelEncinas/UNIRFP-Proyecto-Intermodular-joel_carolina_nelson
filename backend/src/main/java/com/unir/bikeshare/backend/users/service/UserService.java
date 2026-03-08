@@ -11,15 +11,15 @@ import com.unir.bikeshare.backend.common.exception.NotFoundException;
 import com.unir.bikeshare.backend.users.dto.LoginRequest;
 import com.unir.bikeshare.backend.users.dto.UserRegisterRequest;
 import com.unir.bikeshare.backend.users.dto.UserResponse;
+import com.unir.bikeshare.backend.users.dto.UserUpdateRequest;
 import com.unir.bikeshare.backend.users.mapper.UserMapper;
 import com.unir.bikeshare.backend.users.model.User;
 import com.unir.bikeshare.backend.users.repository.UserRepository;
 
-
 @Service
 @Transactional
 public class UserService {
-	private final UserRepository userRepository;
+    private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
     public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
@@ -73,5 +73,35 @@ public class UserService {
 
         // De momento devolvemos UserResponse (sin JWT).
         return UserMapper.toResponse(user);
+    }
+
+    // Nuevo método para actualizar un usuario
+    public UserResponse update(Long id, UserUpdateRequest req) {
+
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+
+        if (req.username() != null) {
+            user.setUsername(req.username());
+        }
+
+        if (req.email() != null) {
+            user.setEmail(req.email());
+        }
+
+        if (req.password() != null && !req.password().isBlank()) {
+            user.setPassword(passwordEncoder.encode(req.password()));
+        }
+
+        User updated = userRepository.save(user);
+
+        return UserMapper.toResponse(updated);
+    }
+
+    // Nuevo método para eliminar un usuario
+    public void delete(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+        userRepository.delete(user);
     }
 }
