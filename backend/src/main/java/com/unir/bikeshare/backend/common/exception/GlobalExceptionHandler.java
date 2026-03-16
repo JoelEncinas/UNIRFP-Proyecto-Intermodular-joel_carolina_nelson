@@ -8,6 +8,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -66,6 +67,25 @@ public class GlobalExceptionHandler {
         );
 
         return ResponseEntity.badRequest().body(error);
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ApiError> handleResponseStatus(
+            ResponseStatusException ex,
+            HttpServletRequest request) {
+
+        int status = ex.getStatusCode().value();
+        HttpStatus httpStatus = HttpStatus.resolve(status);
+
+        ApiError error = new ApiError(
+                Instant.now(),
+                status,
+                (httpStatus != null ? httpStatus.getReasonPhrase() : "Request Error"),
+                (ex.getReason() != null ? ex.getReason() : "Request failed"),
+                request.getRequestURI()
+        );
+
+        return ResponseEntity.status(status).body(error);
     }
 
     @ExceptionHandler(Exception.class)

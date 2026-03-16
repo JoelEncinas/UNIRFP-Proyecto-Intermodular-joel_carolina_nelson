@@ -5,14 +5,14 @@ export class TokenStorage {
   private readonly key = 'auth_token';
 
   getToken(): string | null {
-    return localStorage.getItem(this.key);
+    return sessionStorage.getItem(this.key);
   }
 
   setToken(token: string): void {
-    localStorage.setItem(this.key, token);
+    sessionStorage.setItem(this.key, token);
   }
 
   clearToken(): void {
-    localStorage.removeItem(this.key);
+    sessionStorage.removeItem(this.key);
   }
 }
