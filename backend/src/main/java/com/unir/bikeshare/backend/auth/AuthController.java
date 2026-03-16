@@ -3,14 +3,21 @@ package com.unir.bikeshare.backend.auth;
 import com.unir.bikeshare.backend.users.model.User;
 import com.unir.bikeshare.backend.users.model.UserRole;
 import com.unir.bikeshare.backend.users.repository.UserRepository;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
-import com.unir.bikeshare.backend.auth.AuthReponseDTO;
-import com.unir.bikeshare.backend.security.*;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
+
+import com.unir.bikeshare.backend.security.JwtService;
 
 @RestController
 @RequestMapping("/auth")
@@ -23,14 +30,14 @@ public class AuthController {
   private final JwtService jwtService;
 
   @PostMapping("/register")
-  public AuthReponseDTO register(@RequestBody RegisterRequestDTO request) {
+  public AuthReponseDTO register(@RequestBody @Valid RegisterRequestDTO request) {
 
     if (userRepository.findByUsername(request.getUsername()).isPresent()) {
-      throw new IllegalStateException("Username already exists");
+      throw new ResponseStatusException(HttpStatus.CONFLICT, "Username already exists");
     }
 
     if (userRepository.findByEmail(request.getEmail()).isPresent()) {
-      throw new IllegalStateException("Email already exists");
+      throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already exists");
     }
 
     User user = new User();
@@ -44,12 +51,17 @@ public class AuthController {
   }
 
   @PostMapping("/login")
-  public AuthReponseDTO login(@RequestBody LoginRequestDTO request) {
+  public AuthReponseDTO login(@RequestBody @Valid LoginRequestDTO request) {
 
-    Authentication authentication = authenticationManager.authenticate(
-        new UsernamePasswordAuthenticationToken(
-            request.getUsername(),
-            request.getPassword()));
+    final Authentication authentication;
+    try {
+      authentication = authenticationManager.authenticate(
+          new UsernamePasswordAuthenticationToken(
+              request.getUsername(),
+              request.getPassword()));
+    } catch (AuthenticationException ex) {
+      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
+    }
 
     String username = authentication.getName();
     String token = jwtService.generateToken(username);
