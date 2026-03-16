@@ -1,1 +1,45 @@
-<p>login-form works!</p>
+<form class="grid gap-4" [formGroup]="loginForm" (ngSubmit)="onSubmit()">
+  <div class="grid gap-1">
+    <label class="text-sm font-semibold text-slate-800" for="username">Usuario</label>
+    <input
+      id="username"
+      class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+      type="text"
+      formControlName="username"
+      autocomplete="username"
+    />
+    @if (loginForm.controls.username.touched && loginForm.controls.username.invalid) {
+      <p class="text-xs font-medium text-rose-700">
+        Usuario requerido.
+      </p>
+    }
+  </div>
+
+  <div class="grid gap-1">
+    <label class="text-sm font-semibold text-slate-800" for="password">Contrasena</label>
+    <input
+      id="password"
+      class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+      type="password"
+      formControlName="password"
+      autocomplete="current-password"
+    />
+    @if (loginForm.controls.password.touched && loginForm.controls.password.invalid) {
+      <p class="text-xs font-medium text-rose-700">
+        Contrasena requerida.
+      </p>
+    }
+  </div>
+
+  <button
+    class="mt-1 inline-flex items-center justify-center rounded-lg bg-sky-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-70"
+    type="submit"
+    [disabled]="loading || loginForm.invalid"
+  >
+    @if (loading) {
+      Accediendo...
+    } @else {
+      Acceder
+    }
+  </button>
+</form>
