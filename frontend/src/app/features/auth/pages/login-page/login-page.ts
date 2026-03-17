@@ -42,7 +42,7 @@ export class LoginPage {
         },
         error: (error: unknown) => {
           if (error instanceof HttpErrorResponse && error.status === 401) {
-            this.errorMessage.set('Usuario o contraseña invalidas.');
+            this.errorMessage.set('Usuario o contrasena invalidos.');
             return;
           }
           this.errorMessage.set('No se pudo acceder. Intentalo mas tarde.');
@@ -57,3 +57,4 @@ export class LoginPage {
     return '/app/map';
   }
 }
+
