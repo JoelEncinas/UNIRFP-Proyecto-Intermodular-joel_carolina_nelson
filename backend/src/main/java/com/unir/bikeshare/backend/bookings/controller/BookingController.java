@@ -1,8 +1,11 @@
 package com.unir.bikeshare.backend.bookings.controller;
 
 import java.util.List;
+import java.util.Objects;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -18,6 +21,8 @@ import com.unir.bikeshare.backend.bookings.dto.BookingResponse;
 import com.unir.bikeshare.backend.bookings.dto.BookingUpdateRequest;
 import com.unir.bikeshare.backend.bookings.model.BookingStatus;
 import com.unir.bikeshare.backend.bookings.service.BookingService;
+import com.unir.bikeshare.backend.users.dto.UserResponse;
+import com.unir.bikeshare.backend.users.service.UserService;
 
 import jakarta.validation.Valid;
 
@@ -25,34 +30,62 @@ import jakarta.validation.Valid;
 @RequestMapping("/api/bookings")
 public class BookingController {
 	private final BookingService bookingService;
+    private final UserService userService;
 
-    public BookingController(BookingService bookingService) {
+    public BookingController(BookingService bookingService, UserService userService) {
         this.bookingService = bookingService;
+        this.userService = userService;
     }
     
     @GetMapping
     public List<BookingResponse> getAll(
             @RequestParam(required = false) Long userId,
-            @RequestParam(required = false) Long bikeId
+            @RequestParam(required = false) Long bikeId,
+            Authentication authentication
     ) {
+        if (!isAdmin(authentication)) {
+            UserResponse currentUser = getCurrentUser(authentication);
+            if (userId != null && !Objects.equals(userId, currentUser.id())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only access your own bookings");
+            }
+
+            List<BookingResponse> ownBookings = bookingService.getByUser(currentUser.id());
+            if (bikeId == null) {
+                return ownBookings;
+            }
+
+            return ownBookings.stream()
+                    .filter(booking -> Objects.equals(booking.bikeId(), bikeId))
+                    .toList();
+        }
+
         if (userId != null) return bookingService.getByUser(userId);
         if (bikeId != null) return bookingService.getByBike(bikeId);
         return bookingService.getAll();
     }
 
     @GetMapping("/{id}")
-    public BookingResponse getById(@PathVariable Long id) {
-        return bookingService.getById(id);
+    public BookingResponse getById(@PathVariable Long id, Authentication authentication) {
+        BookingResponse booking = bookingService.getById(id);
+        ensureCanAccessBooking(authentication, booking);
+        return booking;
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public BookingResponse create(@RequestBody @Valid BookingCreateRequest req) {
+    public BookingResponse create(@RequestBody @Valid BookingCreateRequest req, Authentication authentication) {
+        if (!isAdmin(authentication)) {
+            UserResponse currentUser = getCurrentUser(authentication);
+            if (!Objects.equals(req.userId(), currentUser.id())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only create bookings for yourself");
+            }
+        }
         return bookingService.create(req);
     }
 
     @PutMapping("/{id}")
-    public BookingResponse update(@PathVariable Long id, @RequestBody BookingUpdateRequest req) {
+    public BookingResponse update(@PathVariable Long id, @RequestBody BookingUpdateRequest req, Authentication authentication) {
+        ensureCanAccessBooking(authentication, bookingService.getById(id));
         return bookingService.update(id, req);
     }
 
@@ -60,19 +93,42 @@ public class BookingController {
     
     //cambiar reserva a activa
     @PostMapping("/{id}/activate")
-    public BookingResponse activate(@PathVariable Long id) {
+    public BookingResponse activate(@PathVariable Long id, Authentication authentication) {
+        ensureCanAccessBooking(authentication, bookingService.getById(id));
         return bookingService.update(id, new BookingUpdateRequest(BookingStatus.ACTIVE, null));
     }
 
     //cambiar reserva a empezada
     @PostMapping("/{id}/complete")
-    public BookingResponse complete(@PathVariable Long id) {
+    public BookingResponse complete(@PathVariable Long id, Authentication authentication) {
+        ensureCanAccessBooking(authentication, bookingService.getById(id));
         return bookingService.update(id, new BookingUpdateRequest(BookingStatus.COMPLETED, null));
     }
 
     //cambiar reserva a cancelada
     @PostMapping("/{id}/cancel")
-    public BookingResponse cancel(@PathVariable Long id) {
+    public BookingResponse cancel(@PathVariable Long id, Authentication authentication) {
+        ensureCanAccessBooking(authentication, bookingService.getById(id));
         return bookingService.update(id, new BookingUpdateRequest(BookingStatus.CANCELLED, null));
+    }
+
+    private boolean isAdmin(Authentication authentication) {
+        return authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
+    }
+
+    private UserResponse getCurrentUser(Authentication authentication) {
+        return userService.getByUsername(authentication.getName());
+    }
+
+    private void ensureCanAccessBooking(Authentication authentication, BookingResponse booking) {
+        if (isAdmin(authentication)) {
+            return;
+        }
+
+        UserResponse currentUser = getCurrentUser(authentication);
+        if (!Objects.equals(booking.userId(), currentUser.id())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only access your own bookings");
+        }
     }
 }

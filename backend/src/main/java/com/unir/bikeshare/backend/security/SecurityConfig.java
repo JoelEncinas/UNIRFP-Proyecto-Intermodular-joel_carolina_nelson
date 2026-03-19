@@ -40,6 +40,13 @@ public class SecurityConfig {
                 "/swagger-ui.html"
 
             ).permitAll()
+            .requestMatchers(HttpMethod.GET, "/api/users/me").authenticated()
+            .requestMatchers(HttpMethod.PUT, "/api/users/me").authenticated()
+            .requestMatchers(HttpMethod.DELETE, "/api/users/me").authenticated()
+            .requestMatchers("/api/users/**").hasRole("ADMIN")
+            .requestMatchers(HttpMethod.POST, "/api/bikes/**").hasRole("ADMIN")
+            .requestMatchers(HttpMethod.PUT, "/api/bikes/**").hasRole("ADMIN")
+            .requestMatchers(HttpMethod.DELETE, "/api/bikes/**").hasRole("ADMIN")
             .requestMatchers("/admin/**").hasRole("ADMIN")
             .requestMatchers("/api/**").authenticated()
             .anyRequest().permitAll())
