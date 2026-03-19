@@ -88,6 +88,15 @@ public class BookingService {
             throw new BusinessException("Bike is not available");
         }
 
+        boolean userHasActiveOrPending = bookingRepository.existsByUserIdAndStatusIn(
+                user.getId(),
+                ACTIVE_OR_PENDING
+        );
+
+        if (userHasActiveOrPending) {
+            throw new BusinessException("User already has an active or pending booking");
+        }
+
         boolean hasActiveOrPending = bookingRepository.existsByBikeIdAndStatusIn(
                 bike.getId(),
                 ACTIVE_OR_PENDING
