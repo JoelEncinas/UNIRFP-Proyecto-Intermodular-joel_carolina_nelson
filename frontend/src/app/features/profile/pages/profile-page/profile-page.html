@@ -1,1 +1,191 @@
-<p>profile-page works!</p>
+<section class="mx-auto w-full max-w-5xl">
+  <header class="mb-4 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+    <p class="m-0 text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Perfil</p>
+    <h1 class="mt-1 text-2xl font-bold text-slate-900">Gestion de cuenta</h1>
+    <p class="mt-1 text-sm text-slate-600">
+      Puedes actualizar username, email o contrasena de forma individual o guardar todo junto.
+    </p>
+  </header>
+
+  @if (isLoading()) {
+    <article class="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600 shadow-sm">
+      Cargando perfil...
+    </article>
+  } @else {
+    <div class="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
+      <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div class="flex items-center gap-3">
+          <div
+            class="flex h-14 w-14 items-center justify-center rounded-full bg-sky-700 text-xl font-bold text-white"
+            data-testid="profile-initial"
+          >
+            {{ userInitial() }}
+          </div>
+          <div>
+            <p class="m-0 text-sm text-slate-500">Usuario</p>
+            <p class="m-0 text-lg font-semibold text-slate-900">{{ profile()?.username }}</p>
+          </div>
+        </div>
+
+        <dl class="mt-5 grid gap-2 text-sm">
+          <div class="flex justify-between gap-2">
+            <dt class="text-slate-500">Email</dt>
+            <dd class="text-right font-medium text-slate-800">{{ profile()?.email }}</dd>
+          </div>
+          <div class="flex justify-between gap-2">
+            <dt class="text-slate-500">Rol</dt>
+            <dd class="text-right font-medium text-slate-800">{{ profile()?.role }}</dd>
+          </div>
+          <div class="flex justify-between gap-2">
+            <dt class="text-slate-500">Saldo</dt>
+            <dd class="text-right font-medium text-slate-800">
+              {{ profile()?.balance | number: '1.2-2' }} EUR
+            </dd>
+          </div>
+          <div class="flex justify-between gap-2">
+            <dt class="text-slate-500">Alta</dt>
+            <dd class="text-right font-medium text-slate-800">
+              {{ profile()?.createdAt | date: 'dd/MM/yyyy HH:mm' }}
+            </dd>
+          </div>
+        </dl>
+      </article>
+
+      <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        @if (errorMessage(); as message) {
+          <div class="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">
+            {{ message }}
+          </div>
+        }
+
+        @if (successMessage(); as message) {
+          <div class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
+            {{ message }}
+          </div>
+        }
+
+        <form class="grid gap-4" [formGroup]="profileForm" (ngSubmit)="updateAll()">
+          <div class="grid gap-1">
+            <label class="text-sm font-semibold text-slate-800" for="profile-username">Username</label>
+            <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+              <input
+                id="profile-username"
+                class="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                type="text"
+                formControlName="username"
+                autocomplete="username"
+              />
+              <button
+                type="button"
+                class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                [disabled]="isBusy()"
+                (click)="updateField('username')"
+              >
+                Guardar username
+              </button>
+            </div>
+          </div>
+
+          <div class="grid gap-1">
+            <label class="text-sm font-semibold text-slate-800" for="profile-email">Email</label>
+            <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+              <input
+                id="profile-email"
+                class="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                type="email"
+                formControlName="email"
+                autocomplete="email"
+              />
+              <button
+                type="button"
+                class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                [disabled]="isBusy()"
+                (click)="updateField('email')"
+              >
+                Guardar email
+              </button>
+            </div>
+          </div>
+
+          <div class="grid gap-1">
+            <label class="text-sm font-semibold text-slate-800" for="profile-password">
+              Nueva contrasena
+            </label>
+            <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+              <input
+                id="profile-password"
+                class="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                type="password"
+                formControlName="password"
+                autocomplete="new-password"
+                placeholder="Minimo 6 caracteres"
+              />
+              <button
+                type="button"
+                class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                [disabled]="isBusy()"
+                (click)="updateField('password')"
+              >
+                Guardar contrasena
+              </button>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            class="mt-1 inline-flex items-center justify-center rounded-lg bg-sky-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-70"
+            [disabled]="isBusy()"
+          >
+            Guardar todos los cambios
+          </button>
+        </form>
+
+        <hr class="my-5 border-slate-200" />
+
+        <section>
+          <h2 class="text-base font-semibold text-slate-900">Zona de riesgo</h2>
+          @if (!isDeleteConfirmationVisible()) {
+            <button
+              type="button"
+              class="mt-3 inline-flex items-center justify-center rounded-lg bg-rose-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-70"
+              [disabled]="isBusy()"
+              data-testid="profile-delete-trigger"
+              (click)="showDeleteConfirmation()"
+            >
+              Eliminar cuenta definitivamente
+            </button>
+          } @else {
+            <div
+              class="mt-3 rounded-lg border border-rose-200 bg-rose-50 p-3"
+              data-testid="profile-delete-confirmation"
+            >
+              <p class="text-sm font-medium text-rose-800">
+                Confirmacion final: esta accion no se puede deshacer.
+              </p>
+              <div class="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  class="inline-flex items-center justify-center rounded-lg bg-rose-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-70"
+                  [disabled]="isBusy()"
+                  data-testid="profile-delete-confirm-button"
+                  (click)="confirmDeleteAccount()"
+                >
+                  Si, eliminar definitivamente
+                </button>
+                <button
+                  type="button"
+                  class="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-70"
+                  [disabled]="isBusy()"
+                  data-testid="profile-delete-cancel-button"
+                  (click)="cancelDeleteConfirmation()"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          }
+        </section>
+      </article>
+    </div>
+  }
+</section>

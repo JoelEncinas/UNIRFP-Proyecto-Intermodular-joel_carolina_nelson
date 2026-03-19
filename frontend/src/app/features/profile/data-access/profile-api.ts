@@ -1,6 +1,34 @@
-import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Injectable, inject } from '@angular/core';
+import { Observable } from 'rxjs';
+
+import { API_BASE_URL } from '../../../core/config/api-base-url.token';
+import { ProfileUpdateRequest, ProfileUser } from '../models/profile.models';
 
 @Injectable({
   providedIn: 'root',
 })
-export class ProfileApi {}
+export class ProfileApi {
+  private readonly http = inject(HttpClient);
+  private readonly apiBaseUrl = inject(API_BASE_URL);
+
+  getMe(): Observable<ProfileUser> {
+    return this.http.get<ProfileUser>(this.buildUrl('/api/users/me'));
+  }
+
+  updateMe(payload: ProfileUpdateRequest): Observable<ProfileUser> {
+    return this.http.put<ProfileUser>(this.buildUrl('/api/users/me'), payload);
+  }
+
+  deleteMe(): Observable<void> {
+    return this.http.delete<void>(this.buildUrl('/api/users/me'));
+  }
+
+  private buildUrl(path: '/api/users/me'): string {
+    if (!this.apiBaseUrl) {
+      return path;
+    }
+
+    return `${this.apiBaseUrl.replace(/\/+$/, '')}${path}`;
+  }
+}
