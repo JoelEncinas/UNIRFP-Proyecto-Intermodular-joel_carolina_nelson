@@ -42,6 +42,11 @@ public class UserService {
         return UserMapper.toResponse(user);
     }
 
+    @Transactional(readOnly = true)
+    public UserResponse getByUsername(String username) {
+        return UserMapper.toResponse(getUserByUsername(username));
+    }
+
     public UserResponse register(UserRegisterRequest req) {
 
         if (userRepository.existsByUsername(req.username())) {
@@ -81,6 +86,40 @@ public class UserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("User not found"));
 
+        applyUpdateRequest(user, req);
+
+        User updated = userRepository.save(user);
+
+        return UserMapper.toResponse(updated);
+    }
+
+    public UserResponse updateByUsername(String username, UserUpdateRequest req) {
+        User user = getUserByUsername(username);
+
+        applyUpdateRequest(user, req);
+
+        User updated = userRepository.save(user);
+        return UserMapper.toResponse(updated);
+    }
+
+    // Nuevo método para eliminar un usuario
+    public void delete(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+        userRepository.delete(user);
+    }
+
+    public void deleteByUsername(String username) {
+        User user = getUserByUsername(username);
+        userRepository.delete(user);
+    }
+
+    private User getUserByUsername(String username) {
+        return userRepository.findByUsername(username)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+    }
+
+    private void applyUpdateRequest(User user, UserUpdateRequest req) {
         if (req.username() != null) {
             user.setUsername(req.username());
         }
@@ -92,16 +131,5 @@ public class UserService {
         if (req.password() != null && !req.password().isBlank()) {
             user.setPassword(passwordEncoder.encode(req.password()));
         }
-
-        User updated = userRepository.save(user);
-
-        return UserMapper.toResponse(updated);
-    }
-
-    // Nuevo método para eliminar un usuario
-    public void delete(Long id) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("User not found"));
-        userRepository.delete(user);
     }
 }
