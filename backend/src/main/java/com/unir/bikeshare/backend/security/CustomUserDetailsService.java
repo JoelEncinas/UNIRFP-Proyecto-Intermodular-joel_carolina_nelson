@@ -26,4 +26,16 @@ public class CustomUserDetailsService implements UserDetailsService {
         .roles(user.getRole().name()) // Converts to ROLE_ADMIN / ROLE_RIDER
         .build();
   }
+
+  public UserDetails loadUserById(Long userId) throws UsernameNotFoundException {
+    User user = userRepository.findById(userId)
+        .orElseThrow(() -> new UsernameNotFoundException(
+            "User not found with id: " + userId));
+
+    return org.springframework.security.core.userdetails.User
+        .withUsername(user.getUsername())
+        .password(user.getPassword())
+        .roles(user.getRole().name())
+        .build();
+  }
 }

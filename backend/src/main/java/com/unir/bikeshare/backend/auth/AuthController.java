@@ -46,8 +46,8 @@ public class AuthController {
     user.setPassword(passwordEncoder.encode(request.getPassword()));
     user.setRole(UserRole.RIDER); // Asignar un rol predeterminado, por ejemplo, RIDER
 
-    userRepository.save(user);
-    return new AuthReponseDTO(jwtService.generateToken(user.getUsername()));
+    User savedUser = userRepository.save(user);
+    return new AuthReponseDTO(jwtService.generateToken(savedUser));
   }
 
   @PostMapping("/login")
@@ -64,7 +64,10 @@ public class AuthController {
     }
 
     String username = authentication.getName();
-    String token = jwtService.generateToken(username);
+    User user = userRepository.findByUsername(username)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials"));
+
+    String token = jwtService.generateToken(user);
 
     return new AuthReponseDTO(token);
   }

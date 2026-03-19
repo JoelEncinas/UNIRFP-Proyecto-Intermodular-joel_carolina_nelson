@@ -3,6 +3,7 @@ import { TokenStorage } from './token-storage';
 
 interface JwtPayload {
   exp?: number;
+  uid?: number;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -25,7 +26,7 @@ export class Auth {
     }
 
     const payload = this.parseJwtPayload(token);
-    if (!payload || typeof payload.exp !== 'number') {
+    if (!payload || typeof payload.exp !== 'number' || typeof payload.uid !== 'number') {
       this.logout();
       return null;
     }
