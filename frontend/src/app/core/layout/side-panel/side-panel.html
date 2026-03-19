@@ -1,1 +1,38 @@
-<p>side-panel works!</p>
+<aside
+  class="absolute inset-y-0 left-0 z-30 flex h-full w-[78vw] max-w-[300px] flex-col gap-4 border-r border-slate-900/12 bg-[linear-gradient(210deg,rgba(16,33,58,0.92),rgba(17,66,96,0.94)),linear-gradient(25deg,rgba(255,255,255,0.1),transparent_58%)] px-[0.9rem] py-[1.1rem] text-slate-100 transition-transform duration-200 ease-out lg:static lg:z-10 lg:h-full lg:w-full lg:max-w-none lg:translate-x-0"
+  [ngClass]="{
+    'translate-x-0': mobileOpen,
+    '-translate-x-full': !mobileOpen
+  }"
+  data-testid="side-panel"
+>
+  <section class="px-[0.65rem] py-[0.55rem]">
+    <p class="m-0 text-[0.72rem] uppercase tracking-[0.09em] text-slate-100/80">Panel principal</p>
+    <h2 class="m-0 mt-[0.35rem] text-[1.45rem] leading-[1.1]">Tu viaje empieza aqui</h2>
+  </section>
+
+  <nav class="grid gap-[0.35rem]" aria-label="Navegacion principal">
+    @for (link of links; track link.path) {
+      <a
+        class="rounded-2xl px-[0.8rem] py-[0.72rem] font-semibold tracking-[0.01em] text-slate-100/90 no-underline transition hover:translate-x-[3px] hover:bg-slate-50/12"
+        routerLinkActive="bg-[linear-gradient(100deg,rgba(107,255,209,0.22),rgba(255,255,255,0.18))] text-white"
+        [routerLink]="link.path"
+        [attr.data-testid]="'side-panel-link-' + link.label.toLowerCase()"
+        (click)="onNavigate()"
+      >
+        {{ link.label }}
+      </a>
+    }
+  </nav>
+
+  <section class="mt-auto px-[0.4rem] pb-[0.2rem] pt-[0.55rem]">
+    <button
+      type="button"
+      class="w-full cursor-pointer rounded-2xl border border-slate-50/35 bg-slate-50/12 px-[0.9rem] py-[0.8rem] font-bold text-slate-50 transition hover:bg-slate-50/20"
+      data-testid="side-panel-logout"
+      (click)="logout()"
+    >
+      Cerrar sesion
+    </button>
+  </section>
+</aside>
