@@ -31,6 +31,11 @@ export const routes: Routes = [
           import('./features/history/history.routes').then((m) => m.HISTORY_ROUTES),
       },
       {
+        path: 'stations',
+        loadChildren: () =>
+          import('./features/stations/stations.routes').then((m) => m.STATIONS_ROUTES),
+      },
+      {
         path: 'terms',
         loadChildren: () =>
           import('./features/terms/terms.routes').then((m) => m.TERMS_ROUTES),
