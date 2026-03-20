@@ -99,13 +99,6 @@ public class BookingController {
         return bookingService.update(id, new BookingUpdateRequest(BookingStatus.ACTIVE, null));
     }
 
-    //cambiar reserva a empezada
-    @PostMapping("/{id}/complete")
-    public BookingResponse complete(@PathVariable Long id, Authentication authentication) {
-        ensureCanAccessBooking(authentication, bookingService.getById(id));
-        return bookingService.update(id, new BookingUpdateRequest(BookingStatus.COMPLETED, null));
-    }
-
     //cambiar reserva a cancelada
     @PostMapping("/{id}/cancel")
     public BookingResponse cancel(@PathVariable Long id, Authentication authentication) {
