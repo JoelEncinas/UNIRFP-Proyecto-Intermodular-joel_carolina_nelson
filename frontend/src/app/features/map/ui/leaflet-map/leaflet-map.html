@@ -1,5 +1,5 @@
-<div class="relative h-full w-full">
-  <div #mapContainer class="h-full w-full" data-testid="leaflet-map-canvas"></div>
+<div class="relative h-full min-h-[18rem] w-full lg:min-h-0">
+  <div #mapContainer class="h-full min-h-[18rem] w-full lg:min-h-0" data-testid="leaflet-map-canvas"></div>
 
   @if (!isLoading() && !hasRenderableStations()) {
     <div class="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center bg-slate-100/80">

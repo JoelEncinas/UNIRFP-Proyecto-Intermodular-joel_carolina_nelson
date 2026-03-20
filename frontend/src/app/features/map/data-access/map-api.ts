@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '../../../core/config/api-base-url.token';
 import { Bike } from '../models/bike.model';
-import { BookingSummary, CreateBookingRequest } from '../models/map.models';
+import { BookingSummary, CreateBookingRequest, ReturnBookingRequest } from '../models/map.models';
 import { Station } from '../models/station.model';
 
 @Injectable({
@@ -21,6 +21,10 @@ export class MapApi {
   getAvailableBikes(): Observable<Bike[]> {
     return this.http.get<Bike[]>(this.buildUrl('/api/bikes?status=AVAILABLE'));
   }
+  
+  getAllBikes(): Observable<Bike[]> {
+    return this.http.get<Bike[]>(this.buildUrl('/api/bikes'));
+  }
 
   getMyBookings(): Observable<BookingSummary[]> {
     return this.http.get<BookingSummary[]>(this.buildUrl('/api/bookings'));
@@ -32,6 +36,10 @@ export class MapApi {
 
   activateBooking(bookingId: number): Observable<BookingSummary> {
     return this.http.post<BookingSummary>(this.buildUrl(`/api/bookings/${bookingId}/activate`), {});
+  }
+  
+  returnBooking(bookingId: number, payload: ReturnBookingRequest): Observable<BookingSummary> {
+    return this.http.post<BookingSummary>(this.buildUrl(`/api/bookings/${bookingId}/return`), payload);
   }
 
   private buildUrl(path: string): string {

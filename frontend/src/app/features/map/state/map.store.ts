@@ -3,11 +3,12 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { finalize, forkJoin, switchMap } from 'rxjs';
 
 import { MapApi } from '../data-access/map-api';
-import { Bike } from '../models/bike.model';
+import { Bike, BikeStatus } from '../models/bike.model';
 import { BookingStatus, MapCoordinate, MapLoadSnapshot } from '../models/map.models';
 import { Station, StationWithAvailability } from '../models/station.model';
 
-const ACTIVE_BOOKING_STATUSES: BookingStatus[] = ['PENDING', 'ACTIVE'];
+const ACTIVE_OR_PENDING_BOOKING_STATUSES: BookingStatus[] = ['PENDING', 'ACTIVE'];
+const DOCK_OCCUPYING_BIKE_STATUSES: BikeStatus[] = ['AVAILABLE', 'BOOKED', 'MAINTENANCE'];
 const UNLOCK_DISTANCE_METERS = 150;
 
 @Injectable({
@@ -21,9 +22,20 @@ export class MapStore {
   readonly errorMessage = signal<string | null>(null);
   readonly unlockMessage = signal<string | null>(null);
   readonly stations = signal<Station[]>([]);
+  readonly allBikes = signal<Bike[]>([]);
   readonly availableBikes = signal<Bike[]>([]);
   readonly bookings = signal<MapLoadSnapshot['bookings']>([]);
   readonly userLocation = signal<MapCoordinate | null>(null);
+
+  readonly activeBooking = computed(
+    () => this.bookings().find((booking) => booking.status === 'ACTIVE') ?? null,
+  );
+
+  readonly hasActiveBooking = computed(() =>
+    this.bookings().some((booking) => ACTIVE_OR_PENDING_BOOKING_STATUSES.includes(booking.status)),
+  );
+
+  readonly isReturnMode = computed(() => this.activeBooking() !== null);
 
   readonly stationAvailability = computed(() => {
     const counts = new Map<number, number>();
@@ -36,12 +48,28 @@ export class MapStore {
     return counts;
   });
 
+  readonly stationOccupancy = computed(() => {
+    const counts = new Map<number, number>();
+
+    for (const bike of this.allBikes()) {
+      if (bike.stationId === null || !DOCK_OCCUPYING_BIKE_STATUSES.includes(bike.status)) {
+        continue;
+      }
+      counts.set(bike.stationId, (counts.get(bike.stationId) ?? 0) + 1);
+    }
+
+    return counts;
+  });
+
   readonly stationsWithAvailability = computed<StationWithAvailability[]>(() => {
     const availability = this.stationAvailability();
+    const occupancy = this.stationOccupancy();
     const location = this.userLocation();
 
     return this.stations().map((station) => {
       const availableBikes = availability.get(station.id) ?? 0;
+      const occupiedDocks = occupancy.get(station.id) ?? 0;
+      const availableDocks = Math.max(station.capacity - occupiedDocks, 0);
       const distanceMeters =
         location && station.latitude !== null && station.longitude !== null
           ? this.calculateDistanceMeters(location, {
@@ -54,13 +82,12 @@ export class MapStore {
         ...station,
         availableBikes,
         distanceMeters,
+        occupiedDocks,
+        availableDocks,
+        hasFreeDock: availableDocks > 0,
       };
     });
   });
-
-  readonly hasActiveBooking = computed(() =>
-    this.bookings().some((booking) => ACTIVE_BOOKING_STATUSES.includes(booking.status)),
-  );
 
   readonly nearestUnlockableStation = computed<StationWithAvailability | null>(() => {
     const candidates = this.stationsWithAvailability()
@@ -79,16 +106,45 @@ export class MapStore {
     return nearest;
   });
 
-  readonly isUnlockEnabled = computed(
+  readonly nearestReturnStation = computed<StationWithAvailability | null>(() => {
+    const candidates = this.stationsWithAvailability()
+      .filter((station) => station.hasFreeDock && station.distanceMeters !== null)
+      .sort((a, b) => (a.distanceMeters ?? Infinity) - (b.distanceMeters ?? Infinity));
+
+    if (candidates.length === 0) {
+      return null;
+    }
+
+    const nearest = candidates[0];
+    if ((nearest.distanceMeters ?? Infinity) > UNLOCK_DISTANCE_METERS) {
+      return null;
+    }
+
+    return nearest;
+  });
+
+  readonly canUnlock = computed(
     () => !this.hasActiveBooking() && this.nearestUnlockableStation() !== null,
   );
 
+  readonly canReturn = computed(
+    () => this.isReturnMode() && this.nearestReturnStation() !== null,
+  );
+
+  readonly canExecutePrimaryAction = computed(() =>
+    this.isReturnMode() ? this.canReturn() : this.canUnlock(),
+  );
+
   readonly unlockButtonLabel = computed(() => {
+    if (this.isReturnMode()) {
+      return this.canReturn() ? 'devolver bicicleta' : 'sin estaciones cercanas con espacio';
+    }
+
     if (this.hasActiveBooking()) {
       return 'ya tienes una bicicleta activa';
     }
 
-    return this.isUnlockEnabled() ? 'desbloquear bicicleta' : 'sin puestos cercanos, acercate mas';
+    return this.canUnlock() ? 'desbloquear bicicleta' : 'sin puestos cercanos, acercate mas';
   });
 
   loadInitialData(): void {
@@ -155,6 +211,44 @@ export class MapStore {
       });
   }
 
+  returnActiveBike(): void {
+    if (this.isUnlocking() || this.isLoading()) {
+      return;
+    }
+
+    this.unlockMessage.set(null);
+
+    const booking = this.activeBooking();
+    if (!booking) {
+      this.unlockMessage.set('No tienes una bicicleta activa para devolver.');
+      return;
+    }
+
+    const nearestStation = this.nearestReturnStation();
+    if (!nearestStation || !nearestStation.hasFreeDock) {
+      this.unlockMessage.set('No hay estaciones cercanas con espacio disponible.');
+      return;
+    }
+
+    this.isUnlocking.set(true);
+
+    this.mapApi
+      .returnBooking(booking.id, { stationId: nearestStation.id })
+      .pipe(
+        switchMap(() => this.createLoadSnapshot$()),
+        finalize(() => this.isUnlocking.set(false)),
+      )
+      .subscribe({
+        next: (snapshot) => {
+          this.applySnapshot(snapshot);
+          this.unlockMessage.set(`Bicicleta devuelta correctamente en ${nearestStation.name}.`);
+        },
+        error: (error: unknown) => {
+          this.unlockMessage.set(this.toErrorMessage(error, 'No se pudo devolver la bicicleta.'));
+        },
+      });
+  }
+
   refreshAvailability(): void {
     this.loadInitialData();
   }
@@ -174,6 +268,7 @@ export class MapStore {
   private createLoadSnapshot$() {
     return forkJoin({
       stations: this.mapApi.getStations(),
+      allBikes: this.mapApi.getAllBikes(),
       availableBikes: this.mapApi.getAvailableBikes(),
       bookings: this.mapApi.getMyBookings(),
     });
@@ -181,6 +276,7 @@ export class MapStore {
 
   private applySnapshot(snapshot: MapLoadSnapshot): void {
     this.stations.set(snapshot.stations);
+    this.allBikes.set(snapshot.allBikes);
     this.availableBikes.set(snapshot.availableBikes);
     this.bookings.set(snapshot.bookings);
   }

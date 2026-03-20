@@ -25,8 +25,13 @@ export interface CreateBookingRequest {
   expiryTime: string | null;
 }
 
+export interface ReturnBookingRequest {
+  stationId: number;
+}
+
 export interface MapLoadSnapshot {
   stations: Station[];
+  allBikes: Bike[];
   availableBikes: Bike[];
   bookings: BookingSummary[];
 }

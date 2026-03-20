@@ -19,12 +19,20 @@ export class MapPage implements OnInit {
   readonly locationMessage = signal<string | null>(null);
 
   readonly nearestStationSummary = computed(() => {
-    const station = this.mapStore.nearestUnlockableStation();
+    const station = this.mapStore.isReturnMode()
+      ? this.mapStore.nearestReturnStation()
+      : this.mapStore.nearestUnlockableStation();
+
     if (!station) {
       return null;
     }
 
-    return `${station.name} - ${this.formatDistance(station.distanceMeters)} - ${station.availableBikes} bicis`;
+    const prefix = this.mapStore.isReturnMode() ? 'Devolucion cercana' : 'Estacion cercana';
+    const availabilityText = this.mapStore.isReturnMode()
+      ? `${station.availableDocks} huecos`
+      : `${station.availableBikes} bicis`;
+
+    return `${prefix}: ${station.name} - ${this.formatDistance(station.distanceMeters)} - ${availabilityText}`;
   });
 
   ngOnInit(): void {
@@ -63,7 +71,12 @@ export class MapPage implements OnInit {
   }
 
   onUnlockClick(): void {
-    if (!this.mapStore.isUnlockEnabled() || this.mapStore.isLoading() || this.mapStore.isUnlocking()) {
+    if (this.mapStore.isLoading() || this.mapStore.isUnlocking() || !this.mapStore.canExecutePrimaryAction()) {
+      return;
+    }
+    
+    if (this.mapStore.isReturnMode()) {
+      this.mapStore.returnActiveBike();
       return;
     }
 

@@ -36,7 +36,7 @@
 
       @if (nearestStationSummary(); as summary) {
         <p class="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-          Estacion mas cercana: {{ summary }}
+          {{ summary }}
         </p>
       }
     </div>
@@ -56,7 +56,7 @@
         type="button"
         class="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
         data-testid="map-unlock-button"
-        [disabled]="mapStore.isLoading() || mapStore.isUnlocking() || !mapStore.isUnlockEnabled()"
+        [disabled]="mapStore.isLoading() || mapStore.isUnlocking() || !mapStore.canExecutePrimaryAction()"
         (click)="onUnlockClick()"
       >
         {{ mapStore.isUnlocking() ? 'desbloqueando bicicleta...' : mapStore.unlockButtonLabel() }}

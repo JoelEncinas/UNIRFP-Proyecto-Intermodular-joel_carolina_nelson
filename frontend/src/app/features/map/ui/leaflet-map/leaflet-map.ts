@@ -1,4 +1,14 @@
-import { ChangeDetectionStrategy, Component, ElementRef, OnDestroy, AfterViewInit, computed, effect, input, viewChild } from '@angular/core';
+import {
+  AfterViewInit,
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  OnDestroy,
+  computed,
+  effect,
+  input,
+  viewChild,
+} from '@angular/core';
 import * as L from 'leaflet';
 
 import { MapCoordinate } from '../../models/map.models';
@@ -27,6 +37,13 @@ export class LeafletMap implements AfterViewInit, OnDestroy {
   private readonly userLayer = L.layerGroup();
   private resizeObserver: ResizeObserver | null = null;
   private hasInitializedView = false;
+  private pendingInvalidateTimeouts: number[] = [];
+  private readonly onWindowResize = () => this.scheduleInvalidateSize([0, 120, 320, 700]);
+  private readonly onVisibilityChange = () => {
+    if (document.visibilityState === 'visible') {
+      this.scheduleInvalidateSize([0, 120, 320, 700]);
+    }
+  };
 
   constructor() {
     effect(() => {
@@ -48,23 +65,29 @@ export class LeafletMap implements AfterViewInit, OnDestroy {
 
     this.stationsLayer.addTo(this.map);
     this.userLayer.addTo(this.map);
-    this.map.invalidateSize();
-    setTimeout(() => this.map?.invalidateSize(), 0);
-    setTimeout(() => this.map?.invalidateSize(), 250);
+    this.scheduleInvalidateSize([0, 120, 320, 700]);
 
     if ('ResizeObserver' in globalThis) {
       this.resizeObserver = new ResizeObserver(() => {
-        this.map?.invalidateSize();
+        this.scheduleInvalidateSize([0, 80, 240]);
       });
       this.resizeObserver.observe(mapContainer);
     }
+
+    globalThis.addEventListener('resize', this.onWindowResize);
+    globalThis.addEventListener('orientationchange', this.onWindowResize);
+    document.addEventListener('visibilitychange', this.onVisibilityChange);
 
     this.renderLayers(this.stations(), this.userLocation());
   }
 
   ngOnDestroy(): void {
+    globalThis.removeEventListener('resize', this.onWindowResize);
+    globalThis.removeEventListener('orientationchange', this.onWindowResize);
+    document.removeEventListener('visibilitychange', this.onVisibilityChange);
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
+    this.clearPendingInvalidations();
     this.map?.remove();
     this.map = null;
   }
@@ -123,6 +146,7 @@ export class LeafletMap implements AfterViewInit, OnDestroy {
     if (!this.hasInitializedView && bounds.isValid()) {
       this.map.fitBounds(bounds.pad(0.2));
       this.hasInitializedView = true;
+      this.scheduleInvalidateSize([0, 120, 320]);
     }
   }
 
@@ -133,5 +157,37 @@ export class LeafletMap implements AfterViewInit, OnDestroy {
       .replaceAll('>', '&gt;')
       .replaceAll('"', '&quot;')
       .replaceAll("'", '&#039;');
+  }
+
+  private scheduleInvalidateSize(delaysMs: number[]): void {
+    if (!this.map) {
+      return;
+    }
+
+    this.clearPendingInvalidations();
+
+    for (const delayMs of delaysMs) {
+      const timeoutId = globalThis.setTimeout(() => {
+        if (!this.map) {
+          return;
+        }
+
+        const mapContainer = this.mapElement().nativeElement;
+        if (mapContainer.clientWidth === 0 || mapContainer.clientHeight === 0) {
+          return;
+        }
+
+        this.map.invalidateSize();
+      }, delayMs);
+
+      this.pendingInvalidateTimeouts.push(timeoutId);
+    }
+  }
+
+  private clearPendingInvalidations(): void {
+    for (const timeoutId of this.pendingInvalidateTimeouts) {
+      globalThis.clearTimeout(timeoutId);
+    }
+    this.pendingInvalidateTimeouts = [];
   }
 }

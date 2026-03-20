@@ -10,4 +10,7 @@ export interface Station {
 export interface StationWithAvailability extends Station {
   availableBikes: number;
   distanceMeters: number | null;
+  occupiedDocks: number;
+  availableDocks: number;
+  hasFreeDock: boolean;
 }
