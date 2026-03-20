@@ -1,4 +1,4 @@
-<div class="flex h-full min-h-[70dvh] flex-col gap-3" data-testid="map-page-root">
+<div class="flex min-h-[70dvh] flex-col gap-3 lg:h-full" data-testid="map-page-root">
   <section class="rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-sm backdrop-blur-sm lg:p-5">
     <div class="flex flex-wrap items-start justify-between gap-3">
       <div class="space-y-1">
@@ -65,7 +65,7 @@
   </section>
 
   <section
-    class="relative min-h-[52dvh] flex-1 overflow-hidden rounded-3xl border border-slate-200 bg-white/90 shadow-sm md:min-h-[58dvh] lg:min-h-0"
+    class="relative h-[52dvh] overflow-hidden rounded-3xl border border-slate-200 bg-white/90 shadow-sm md:h-[58dvh] lg:h-auto lg:min-h-0 lg:flex-1"
   >
     <app-leaflet-map
       class="block h-full w-full"
