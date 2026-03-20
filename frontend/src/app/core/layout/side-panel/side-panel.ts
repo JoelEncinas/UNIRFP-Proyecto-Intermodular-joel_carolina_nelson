@@ -27,7 +27,6 @@ export class SidePanel {
     { label: 'Mapa', path: '/app/map' },
     { label: 'Historial', path: '/app/history' },
     { label: 'Perfil', path: '/app/profile' },
-    { label: 'Noticias', path: '/app/news' },
     { label: 'Terminos', path: '/app/terms' },
   ];
 

@@ -35,11 +35,6 @@ export const routes: Routes = [
         loadChildren: () =>
           import('./features/terms/terms.routes').then((m) => m.TERMS_ROUTES),
       },
-      {
-        path: 'news',
-        loadChildren: () =>
-          import('./features/news/news.routes').then((m) => m.NEWS_ROUTES),
-      },
       { path: '', pathMatch: 'full', redirectTo: 'map' },
     ],
   },
