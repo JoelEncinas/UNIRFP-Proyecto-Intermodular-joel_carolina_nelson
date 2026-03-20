@@ -10,7 +10,13 @@ public record BookingResponse(
         String username,
         Long bikeId,
         String bikeModel,
+        Long pickupStationId,
+        String pickupStationName,
+        Long dropoffStationId,
+        String dropoffStationName,
         Instant startTime,
         Instant expiryTime,
+        Instant activatedAt,
+        Instant returnedAt,
         BookingStatus status
 		) {}

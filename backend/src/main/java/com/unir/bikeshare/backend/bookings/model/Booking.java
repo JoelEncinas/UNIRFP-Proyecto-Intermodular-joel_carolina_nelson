@@ -3,6 +3,7 @@ package com.unir.bikeshare.backend.bookings.model;
 import java.time.Instant;
 
 import com.unir.bikeshare.backend.bikes.model.Bike;
+import com.unir.bikeshare.backend.stations.model.Station;
 import com.unir.bikeshare.backend.users.model.User;
 
 import jakarta.persistence.Column;
@@ -35,6 +36,16 @@ public class Booking {
     @JoinColumn(name = "bike_id", nullable = false)
     private Bike bike;
 
+    // Snapshot of the station where the ride was picked up.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "pickup_station_id")
+    private Station pickupStation;
+
+    // Snapshot of the station where the ride was returned.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "dropoff_station_id")
+    private Station dropoffStation;
+
     // start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     @Column(name = "start_time", nullable = false)
     private Instant startTime;
@@ -42,6 +53,12 @@ public class Booking {
     // expiry_time TIMESTAMP
     @Column(name = "expiry_time")
     private Instant expiryTime;
+
+    @Column(name = "activated_at")
+    private Instant activatedAt;
+
+    @Column(name = "returned_at")
+    private Instant returnedAt;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
@@ -63,11 +80,23 @@ public class Booking {
     public Bike getBike() { return bike; }
     public void setBike(Bike bike) { this.bike = bike; }
 
+    public Station getPickupStation() { return pickupStation; }
+    public void setPickupStation(Station pickupStation) { this.pickupStation = pickupStation; }
+
+    public Station getDropoffStation() { return dropoffStation; }
+    public void setDropoffStation(Station dropoffStation) { this.dropoffStation = dropoffStation; }
+
     public Instant getStartTime() { return startTime; }
     public void setStartTime(Instant startTime) { this.startTime = startTime; }
 
     public Instant getExpiryTime() { return expiryTime; }
     public void setExpiryTime(Instant expiryTime) { this.expiryTime = expiryTime; }
+
+    public Instant getActivatedAt() { return activatedAt; }
+    public void setActivatedAt(Instant activatedAt) { this.activatedAt = activatedAt; }
+
+    public Instant getReturnedAt() { return returnedAt; }
+    public void setReturnedAt(Instant returnedAt) { this.returnedAt = returnedAt; }
 
     public BookingStatus getStatus() { return status; }
     public void setStatus(BookingStatus status) { this.status = status; }

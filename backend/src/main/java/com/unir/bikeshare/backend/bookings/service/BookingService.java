@@ -117,6 +117,7 @@ public class BookingService {
         }
 
         Booking booking = BookingMapper.toEntity(req, user, bike);
+        booking.setPickupStation(bike.getStation());
 
         // Reservar la bici “ya”
         bike.setStatus(BikeStatus.BOOKED);
@@ -168,6 +169,8 @@ public class BookingService {
         Bike bike = booking.getBike();
         bike.setStation(destinationStation);
         bike.setStatus(BikeStatus.AVAILABLE);
+        booking.setDropoffStation(destinationStation);
+        booking.setReturnedAt(Instant.now());
         booking.setStatus(BookingStatus.COMPLETED);
 
         Booking saved = bookingRepository.save(booking);
@@ -197,19 +200,17 @@ public class BookingService {
                 if (current != BookingStatus.PENDING) {
                     throw new BusinessException("Only PENDING bookings can be activated");
                 }
+                if (booking.getActivatedAt() == null) {
+                    booking.setActivatedAt(Instant.now());
+                }
                 booking.setStatus(BookingStatus.ACTIVE);
                 bike.setStatus(BikeStatus.BUSY);
+                bike.setStation(null);
             }
-            case COMPLETED -> {
-                if (current != BookingStatus.ACTIVE) {
-                    throw new BusinessException("Only ACTIVE bookings can be completed");
-                }
-                booking.setStatus(BookingStatus.COMPLETED);
-                bike.setStatus(BikeStatus.AVAILABLE);
-            }
+            case COMPLETED -> throw new BusinessException("Use return endpoint to complete an ACTIVE booking");
             case CANCELLED -> {
-                if (current != BookingStatus.PENDING && current != BookingStatus.ACTIVE) {
-                    throw new BusinessException("Only PENDING or ACTIVE bookings can be cancelled");
+                if (current != BookingStatus.PENDING) {
+                    throw new BusinessException("Only PENDING bookings can be cancelled");
                 }
                 booking.setStatus(BookingStatus.CANCELLED);
                 bike.setStatus(BikeStatus.AVAILABLE);

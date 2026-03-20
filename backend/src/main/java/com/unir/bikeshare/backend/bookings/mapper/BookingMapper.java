@@ -17,6 +17,10 @@ public class BookingMapper {
 
 		Long bikeId = null;
 		String bikeModel = null;
+		Long pickupStationId = null;
+		String pickupStationName = null;
+		Long dropoffStationId = null;
+		String dropoffStationName = null;
 
 		if (booking.getUser() != null) {
 			userId = booking.getUser().getId();
@@ -28,8 +32,31 @@ public class BookingMapper {
 			bikeModel = booking.getBike().getModel();
 		}
 
-		return new BookingResponse(booking.getId(), userId, username, bikeId, bikeModel, booking.getStartTime(),
-				booking.getExpiryTime(), booking.getStatus());
+		if (booking.getPickupStation() != null) {
+			pickupStationId = booking.getPickupStation().getId();
+			pickupStationName = booking.getPickupStation().getName();
+		}
+
+		if (booking.getDropoffStation() != null) {
+			dropoffStationId = booking.getDropoffStation().getId();
+			dropoffStationName = booking.getDropoffStation().getName();
+		}
+
+		return new BookingResponse(
+				booking.getId(),
+				userId,
+				username,
+				bikeId,
+				bikeModel,
+				pickupStationId,
+				pickupStationName,
+				dropoffStationId,
+				dropoffStationName,
+				booking.getStartTime(),
+				booking.getExpiryTime(),
+				booking.getActivatedAt(),
+				booking.getReturnedAt(),
+				booking.getStatus());
 	}
 	
 	public static Booking toEntity(BookingCreateRequest req, User user, Bike bike) {
