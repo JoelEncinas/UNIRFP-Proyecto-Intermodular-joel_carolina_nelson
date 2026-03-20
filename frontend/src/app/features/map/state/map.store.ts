@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { finalize, forkJoin } from 'rxjs';
+import { finalize, forkJoin, switchMap } from 'rxjs';
 
 import { MapApi } from '../data-access/map-api';
 import { Bike } from '../models/bike.model';
@@ -17,7 +17,9 @@ export class MapStore {
   private readonly mapApi = inject(MapApi);
 
   readonly isLoading = signal(false);
+  readonly isUnlocking = signal(false);
   readonly errorMessage = signal<string | null>(null);
+  readonly unlockMessage = signal<string | null>(null);
   readonly stations = signal<Station[]>([]);
   readonly availableBikes = signal<Bike[]>([]);
   readonly bookings = signal<MapLoadSnapshot['bookings']>([]);
@@ -93,20 +95,62 @@ export class MapStore {
     this.errorMessage.set(null);
     this.isLoading.set(true);
 
-    forkJoin({
-      stations: this.mapApi.getStations(),
-      availableBikes: this.mapApi.getAvailableBikes(),
-      bookings: this.mapApi.getMyBookings(),
-    })
+    this.createLoadSnapshot$()
       .pipe(finalize(() => this.isLoading.set(false)))
       .subscribe({
         next: (snapshot) => {
-          this.stations.set(snapshot.stations);
-          this.availableBikes.set(snapshot.availableBikes);
-          this.bookings.set(snapshot.bookings);
+          this.applySnapshot(snapshot);
         },
         error: (error: unknown) => {
           this.errorMessage.set(this.toErrorMessage(error));
+        },
+      });
+  }
+
+  unlockNearestBike(userId: number): void {
+    if (this.isUnlocking() || this.isLoading()) {
+      return;
+    }
+
+    this.unlockMessage.set(null);
+
+    if (this.hasActiveBooking()) {
+      this.unlockMessage.set('ya tienes una bicicleta activa');
+      return;
+    }
+
+    const nearestStation = this.nearestUnlockableStation();
+    if (!nearestStation) {
+      this.unlockMessage.set('sin puestos cercanos, acercate mas');
+      return;
+    }
+
+    const bike = this.availableBikes().find((candidate) => candidate.stationId === nearestStation.id);
+    if (!bike) {
+      this.unlockMessage.set('No quedan bicis disponibles en la estacion seleccionada.');
+      return;
+    }
+
+    this.isUnlocking.set(true);
+
+    this.mapApi
+      .createBooking({
+        userId,
+        bikeId: bike.id,
+        expiryTime: null,
+      })
+      .pipe(
+        switchMap((booking) => this.mapApi.activateBooking(booking.id)),
+        switchMap(() => this.createLoadSnapshot$()),
+        finalize(() => this.isUnlocking.set(false)),
+      )
+      .subscribe({
+        next: (snapshot) => {
+          this.applySnapshot(snapshot);
+          this.unlockMessage.set('Bicicleta desbloqueada correctamente.');
+        },
+        error: (error: unknown) => {
+          this.unlockMessage.set(this.toErrorMessage(error, 'No se pudo desbloquear la bicicleta.'));
         },
       });
   }
@@ -123,9 +167,27 @@ export class MapStore {
     this.errorMessage.set(null);
   }
 
-  private toErrorMessage(error: unknown): string {
+  clearUnlockMessage(): void {
+    this.unlockMessage.set(null);
+  }
+
+  private createLoadSnapshot$() {
+    return forkJoin({
+      stations: this.mapApi.getStations(),
+      availableBikes: this.mapApi.getAvailableBikes(),
+      bookings: this.mapApi.getMyBookings(),
+    });
+  }
+
+  private applySnapshot(snapshot: MapLoadSnapshot): void {
+    this.stations.set(snapshot.stations);
+    this.availableBikes.set(snapshot.availableBikes);
+    this.bookings.set(snapshot.bookings);
+  }
+
+  private toErrorMessage(error: unknown, fallback = 'No se pudieron cargar los datos del mapa.'): string {
     if (!(error instanceof HttpErrorResponse)) {
-      return 'No se pudieron cargar los datos del mapa.';
+      return fallback;
     }
 
     const apiMessage =
@@ -136,7 +198,7 @@ export class MapStore {
         ? error.error.message
         : null;
 
-    return apiMessage ?? 'No se pudieron cargar los datos del mapa.';
+    return apiMessage ?? fallback;
   }
 
   private calculateDistanceMeters(from: MapCoordinate, to: MapCoordinate): number {

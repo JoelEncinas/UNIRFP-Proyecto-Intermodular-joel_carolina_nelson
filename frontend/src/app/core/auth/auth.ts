@@ -44,6 +44,20 @@ export class Auth {
     return this.getValidToken() !== null;
   }
 
+  getAuthenticatedUserId(): number | null {
+    const token = this.getValidToken();
+    if (!token) {
+      return null;
+    }
+
+    const payload = this.parseJwtPayload(token);
+    if (!payload || typeof payload.uid !== 'number') {
+      return null;
+    }
+
+    return payload.uid;
+  }
+
   private parseJwtPayload(token: string): JwtPayload | null {
     const parts = token.split('.');
     if (parts.length !== 3) {

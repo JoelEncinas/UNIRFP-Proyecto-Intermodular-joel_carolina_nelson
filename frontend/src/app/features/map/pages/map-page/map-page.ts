@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 
+import { Auth } from '../../../../core/auth/auth';
 import { MapStore } from '../../state/map.store';
 import { LeafletMap } from '../../ui/leaflet-map/leaflet-map';
 
@@ -11,10 +12,11 @@ import { LeafletMap } from '../../ui/leaflet-map/leaflet-map';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MapPage implements OnInit {
+  private readonly auth = inject(Auth);
+
   readonly mapStore = inject(MapStore);
   readonly isLocating = signal(false);
   readonly locationMessage = signal<string | null>(null);
-  readonly unlockMessage = signal<string | null>(null);
 
   readonly nearestStationSummary = computed(() => {
     const station = this.mapStore.nearestUnlockableStation();
@@ -22,7 +24,7 @@ export class MapPage implements OnInit {
       return null;
     }
 
-    return `${station.name} · ${this.formatDistance(station.distanceMeters)} · ${station.availableBikes} bicis`;
+    return `${station.name} - ${this.formatDistance(station.distanceMeters)} - ${station.availableBikes} bicis`;
   });
 
   ngOnInit(): void {
@@ -32,7 +34,7 @@ export class MapPage implements OnInit {
 
   requestUserLocation(): void {
     const geolocation = globalThis.navigator?.geolocation;
-    this.unlockMessage.set(null);
+    this.mapStore.clearUnlockMessage();
 
     if (!geolocation) {
       this.locationMessage.set('Este dispositivo no soporta geolocalizacion.');
@@ -61,11 +63,17 @@ export class MapPage implements OnInit {
   }
 
   onUnlockClick(): void {
-    if (!this.mapStore.isUnlockEnabled() || this.mapStore.isLoading()) {
+    if (!this.mapStore.isUnlockEnabled() || this.mapStore.isLoading() || this.mapStore.isUnlocking()) {
       return;
     }
 
-    this.unlockMessage.set('Siguiente paso: conectar desbloqueo y persistencia.');
+    const userId = this.auth.getAuthenticatedUserId();
+    if (userId === null) {
+      this.locationMessage.set('Sesion no valida. Inicia sesion de nuevo.');
+      return;
+    }
+
+    this.mapStore.unlockNearestBike(userId);
   }
 
   private formatDistance(distanceMeters: number | null): string {
