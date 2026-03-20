@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.unir.bikeshare.backend.bookings.dto.BookingCreateRequest;
+import com.unir.bikeshare.backend.bookings.dto.BookingReturnRequest;
 import com.unir.bikeshare.backend.bookings.dto.BookingResponse;
 import com.unir.bikeshare.backend.bookings.dto.BookingUpdateRequest;
 import com.unir.bikeshare.backend.bookings.model.BookingStatus;
@@ -110,6 +111,16 @@ public class BookingController {
     public BookingResponse cancel(@PathVariable Long id, Authentication authentication) {
         ensureCanAccessBooking(authentication, bookingService.getById(id));
         return bookingService.update(id, new BookingUpdateRequest(BookingStatus.CANCELLED, null));
+    }
+    
+    @PostMapping("/{id}/return")
+    public BookingResponse returnBike(
+            @PathVariable Long id,
+            @Valid @RequestBody BookingReturnRequest request,
+            Authentication authentication
+    ) {
+        ensureCanAccessBooking(authentication, bookingService.getById(id));
+        return bookingService.returnBike(id, request.stationId());
     }
 
     private boolean isAdmin(Authentication authentication) {

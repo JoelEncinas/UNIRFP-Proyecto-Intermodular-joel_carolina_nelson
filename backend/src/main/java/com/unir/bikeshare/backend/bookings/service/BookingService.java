@@ -18,6 +18,8 @@ import com.unir.bikeshare.backend.bookings.model.BookingStatus;
 import com.unir.bikeshare.backend.bookings.repository.BookingRepository;
 import com.unir.bikeshare.backend.common.exception.BusinessException;
 import com.unir.bikeshare.backend.common.exception.NotFoundException;
+import com.unir.bikeshare.backend.stations.model.Station;
+import com.unir.bikeshare.backend.stations.repository.StationRepository;
 import com.unir.bikeshare.backend.users.model.User;
 import com.unir.bikeshare.backend.users.repository.UserRepository;
 
@@ -30,16 +32,24 @@ public class BookingService {
             BookingStatus.ACTIVE
     );
 	
+	private static final List<BikeStatus> DOCK_OCCUPYING_STATUSES = List.of(
+            BikeStatus.AVAILABLE,
+            BikeStatus.BOOKED,
+            BikeStatus.MAINTENANCE
+    );
+	
 	private final BookingRepository bookingRepository;
     private final UserRepository userRepository;
     private final BikeRepository bikeRepository;
+    private final StationRepository stationRepository;
     
 	public BookingService(BookingRepository bookingRepository, UserRepository userRepository,
-			BikeRepository bikeRepository) {
+			BikeRepository bikeRepository, StationRepository stationRepository) {
 		super();
 		this.bookingRepository = bookingRepository;
 		this.userRepository = userRepository;
 		this.bikeRepository = bikeRepository;
+		this.stationRepository = stationRepository;
 	}
 	
 	//READ
@@ -130,6 +140,35 @@ public class BookingService {
         if (req.status() != null) {
             applyStatusChange(booking, req.status());
         }
+
+        Booking saved = bookingRepository.save(booking);
+        return BookingMapper.toResponse(saved);
+    }
+    
+    public BookingResponse returnBike(Long bookingId, Long stationId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new NotFoundException("Booking not found"));
+
+        if (booking.getStatus() != BookingStatus.ACTIVE) {
+            throw new BusinessException("Only ACTIVE bookings can be returned");
+        }
+
+        Station destinationStation = stationRepository.findById(stationId)
+                .orElseThrow(() -> new NotFoundException("Station not found"));
+
+        long occupiedDocks = bikeRepository.countByStationIdAndStatusIn(
+                stationId,
+                DOCK_OCCUPYING_STATUSES
+        );
+
+        if (occupiedDocks >= destinationStation.getCapacity()) {
+            throw new BusinessException("Station is full");
+        }
+
+        Bike bike = booking.getBike();
+        bike.setStation(destinationStation);
+        bike.setStatus(BikeStatus.AVAILABLE);
+        booking.setStatus(BookingStatus.COMPLETED);
 
         Booking saved = bookingRepository.save(booking);
         return BookingMapper.toResponse(saved);

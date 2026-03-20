@@ -15,6 +15,8 @@ public interface BikeRepository extends JpaRepository<Bike, Long>{
     List<Bike> findByStationIdAndStatus(Long stationId, BikeStatus status);
 
     long countByStationIdAndStatus(Long stationId, BikeStatus status);
+    
+    long countByStationIdAndStatusIn(Long stationId, List<BikeStatus> statuses);
 
     boolean existsByStationId(Long stationId);
 }
