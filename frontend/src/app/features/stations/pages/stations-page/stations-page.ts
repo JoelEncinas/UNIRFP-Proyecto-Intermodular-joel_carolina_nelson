@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Router } from '@angular/router';
 import { forkJoin } from 'rxjs';
 
 import { Bike } from '../../../map/models/bike.model';
@@ -24,6 +25,7 @@ const PROXIMITY_RADIUS_METERS = 1000;
 })
 export class StationsPage implements OnInit {
   private readonly stationsApi = inject(StationsApi);
+  private readonly router = inject(Router);
 
   readonly isLoading = signal(true);
   readonly isLocating = signal(false);
@@ -143,6 +145,33 @@ export class StationsPage implements OnInit {
     }
 
     return `${Math.round(distanceMeters)} m`;
+  }
+
+  canOpenOnMap(station: Pick<Station, 'latitude' | 'longitude'>): boolean {
+    return station.latitude !== null && station.longitude !== null;
+  }
+
+  openStationOnMap(stationId: number, canOpen: boolean): void {
+    if (!canOpen) {
+      return;
+    }
+
+    void this.router.navigate(['/app/map'], {
+      queryParams: { stationId },
+    });
+  }
+
+  onStationKeydown(event: KeyboardEvent, stationId: number, canOpen: boolean): void {
+    if (!canOpen) {
+      return;
+    }
+
+    if (event.key !== 'Enter' && event.key !== ' ') {
+      return;
+    }
+
+    event.preventDefault();
+    this.openStationOnMap(stationId, canOpen);
   }
 
   private loadStations(): void {

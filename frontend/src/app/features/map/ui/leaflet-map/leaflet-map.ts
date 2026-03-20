@@ -27,6 +27,8 @@ export class LeafletMap implements AfterViewInit, OnDestroy {
   readonly stations = input<StationWithAvailability[]>([]);
   readonly userLocation = input<MapCoordinate | null>(null);
   readonly isLoading = input(false);
+  readonly focusStationId = input<number | null>(null);
+  readonly panToUser = input(true);
 
   readonly hasRenderableStations = computed(() =>
     this.stations().some((station) => station.latitude !== null && station.longitude !== null),
@@ -37,6 +39,7 @@ export class LeafletMap implements AfterViewInit, OnDestroy {
   private readonly userLayer = L.layerGroup();
   private resizeObserver: ResizeObserver | null = null;
   private hasInitializedView = false;
+  private lastFocusedStationId: number | null = null;
   private pendingInvalidateTimeouts: number[] = [];
   private readonly onWindowResize = () => this.scheduleInvalidateSize([0, 120, 320, 700]);
   private readonly onVisibilityChange = () => {
@@ -47,7 +50,12 @@ export class LeafletMap implements AfterViewInit, OnDestroy {
 
   constructor() {
     effect(() => {
-      this.renderLayers(this.stations(), this.userLocation());
+      this.renderLayers(
+        this.stations(),
+        this.userLocation(),
+        this.focusStationId(),
+        this.panToUser(),
+      );
     });
   }
 
@@ -78,7 +86,12 @@ export class LeafletMap implements AfterViewInit, OnDestroy {
     globalThis.addEventListener('orientationchange', this.onWindowResize);
     document.addEventListener('visibilitychange', this.onVisibilityChange);
 
-    this.renderLayers(this.stations(), this.userLocation());
+    this.renderLayers(
+      this.stations(),
+      this.userLocation(),
+      this.focusStationId(),
+      this.panToUser(),
+    );
   }
 
   ngOnDestroy(): void {
@@ -92,7 +105,12 @@ export class LeafletMap implements AfterViewInit, OnDestroy {
     this.map = null;
   }
 
-  private renderLayers(stations: StationWithAvailability[], userLocation: MapCoordinate | null): void {
+  private renderLayers(
+    stations: StationWithAvailability[],
+    userLocation: MapCoordinate | null,
+    focusStationId: number | null,
+    panToUser: boolean,
+  ): void {
     if (!this.map) {
       return;
     }
@@ -101,6 +119,7 @@ export class LeafletMap implements AfterViewInit, OnDestroy {
     this.userLayer.clearLayers();
 
     const bounds = L.latLngBounds([]);
+    const stationCoordinatesById = new Map<number, L.LatLng>();
 
     for (const station of stations) {
       if (station.latitude === null || station.longitude === null) {
@@ -109,6 +128,7 @@ export class LeafletMap implements AfterViewInit, OnDestroy {
 
       const latLng = L.latLng(station.latitude, station.longitude);
       bounds.extend(latLng);
+      stationCoordinatesById.set(station.id, latLng);
 
       const available = station.availableBikes;
       const hasAvailability = available > 0;
@@ -126,6 +146,20 @@ export class LeafletMap implements AfterViewInit, OnDestroy {
         .addTo(this.stationsLayer);
     }
 
+    if (focusStationId === null) {
+      this.lastFocusedStationId = null;
+    } else if (focusStationId !== this.lastFocusedStationId) {
+      const focusCoordinates = stationCoordinatesById.get(focusStationId);
+
+      if (focusCoordinates) {
+        const currentZoom = this.map.getZoom();
+        const targetZoom = Number.isFinite(currentZoom) ? Math.max(currentZoom, 15) : 15;
+        this.map.setView(focusCoordinates, targetZoom);
+        this.lastFocusedStationId = focusStationId;
+        this.hasInitializedView = true;
+      }
+    }
+
     if (userLocation) {
       const latLng = L.latLng(userLocation.latitude, userLocation.longitude);
       bounds.extend(latLng);
@@ -140,7 +174,9 @@ export class LeafletMap implements AfterViewInit, OnDestroy {
         .bindPopup('Tu ubicacion')
         .addTo(this.userLayer);
 
-      this.map.panTo(latLng);
+      if (panToUser) {
+        this.map.panTo(latLng);
+      }
     }
 
     if (!this.hasInitializedView && bounds.isValid()) {

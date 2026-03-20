@@ -72,6 +72,8 @@
       [stations]="mapStore.stationsWithAvailability()"
       [userLocation]="mapStore.userLocation()"
       [isLoading]="mapStore.isLoading()"
+      [focusStationId]="focusStationId()"
+      [panToUser]="panToUser()"
     />
 
     @if (mapStore.isLoading()) {

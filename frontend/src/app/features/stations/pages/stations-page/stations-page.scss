@@ -1,3 +1,36 @@
 :host {
   display: block;
 }
+
+.station-card {
+  outline: none;
+}
+
+.station-card--interactive {
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease,
+    transform 120ms ease;
+}
+
+.station-card--interactive:hover {
+  border-color: #7dd3fc;
+  background-color: #f8fbff;
+  box-shadow: 0 10px 28px -22px rgba(2, 132, 199, 0.45);
+}
+
+.station-card--interactive:focus-visible {
+  box-shadow:
+    0 0 0 2px #e0f2fe,
+    0 0 0 4px #0ea5e9;
+}
+
+.station-card--interactive:active {
+  transform: scale(0.996);
+}
+
+.station-card--disabled {
+  opacity: 0.88;
+}
