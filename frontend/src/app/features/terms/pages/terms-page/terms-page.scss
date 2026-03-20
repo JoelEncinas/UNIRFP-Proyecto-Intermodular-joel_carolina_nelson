@@ -1,0 +1,47 @@
+:host {
+  display: block;
+}
+
+.terms-page {
+  padding-bottom: 1rem;
+}
+
+.terms-block + .terms-block {
+  margin-top: 1.4rem;
+}
+
+.terms-block h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.terms-block p {
+  margin: 0.55rem 0 0;
+  color: #475569;
+  line-height: 1.6;
+}
+
+.terms-block ul {
+  margin: 0.55rem 0 0;
+  padding-left: 1.2rem;
+  color: #475569;
+  line-height: 1.6;
+  list-style: disc;
+}
+
+.terms-block li + li {
+  margin-top: 0.25rem;
+}
+
+.terms-link {
+  color: #1d4ed8;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.terms-link:hover,
+.terms-link:focus-visible {
+  text-decoration: underline;
+}
