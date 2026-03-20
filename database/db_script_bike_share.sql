@@ -37,11 +37,17 @@ CREATE TABLE bookings(
 id BIGINT AUTO_INCREMENT PRIMARY KEY,
 user_id BIGINT NOT NULL, 
 bike_id BIGINT NOT NULL, 
+pickup_station_id BIGINT NULL,
+dropoff_station_id BIGINT NULL,
 start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 expiry_time TIMESTAMP,
+activated_at TIMESTAMP NULL,
+returned_at TIMESTAMP NULL,
 status ENUM('PENDING', 'ACTIVE', 'COMPLETED', 'CANCELLED') DEFAULT 'PENDING',
 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-FOREIGN KEY (bike_id) REFERENCES bikes(id) ON DELETE CASCADE
+FOREIGN KEY (bike_id) REFERENCES bikes(id) ON DELETE CASCADE,
+FOREIGN KEY (pickup_station_id) REFERENCES stations(id) ON DELETE SET NULL,
+FOREIGN KEY (dropoff_station_id) REFERENCES stations(id) ON DELETE SET NULL
 )ENGINE=InnoDB;
 
 -- 5. Payments table (History and Audit Trail)
