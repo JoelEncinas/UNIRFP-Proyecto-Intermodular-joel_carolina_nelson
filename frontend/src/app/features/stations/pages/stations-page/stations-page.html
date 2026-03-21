@@ -1,0 +1,158 @@
+<section class="mx-auto w-full max-w-5xl" data-testid="stations-page-root">
+  <header class="mb-4 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+    <p class="m-0 text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Estaciones</p>
+    <h1 class="mt-1 text-2xl font-bold text-slate-900">Listado de estaciones</h1>
+    <p class="mt-1 text-sm text-slate-600">
+      Consulta bicis disponibles, ubicacion y filtra por nombre o cercania.
+    </p>
+  </header>
+
+  <section class="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+    <article class="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+      <p class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Total</p>
+      <p class="mt-1 text-xl font-bold text-slate-900">{{ stations().length }}</p>
+    </article>
+    <article class="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+      <p class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Visibles</p>
+      <p class="mt-1 text-xl font-bold text-slate-900">{{ filteredStations().length }}</p>
+    </article>
+    <article class="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+      <p class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+        Filtro cercania
+      </p>
+      <p class="mt-1 text-xl font-bold text-slate-900">
+        {{ proximityFilterEnabled() ? 'Activo' : 'Inactivo' }}
+      </p>
+    </article>
+  </section>
+
+  <section class="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div class="grid gap-2 sm:grid-cols-2">
+      <label class="grid gap-1 text-sm font-medium text-slate-700">
+        Buscar por nombre
+        <input
+          type="search"
+          class="rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+          placeholder="Ej: Sol, Moncloa..."
+          [value]="searchTerm()"
+          (input)="onSearchInput($event)"
+          data-testid="stations-search-input"
+        />
+      </label>
+
+      <div class="flex flex-wrap items-end gap-2">
+        <button
+          type="button"
+          class="rounded-2xl border border-sky-300 bg-sky-100 px-4 py-2 text-sm font-semibold text-sky-800 transition hover:bg-sky-200 disabled:cursor-not-allowed disabled:opacity-60"
+          [disabled]="isLocating()"
+          (click)="requestUserLocation()"
+          data-testid="stations-location-button"
+        >
+          {{ isLocating() ? 'Detectando ubicacion...' : 'Actualizar ubicacion' }}
+        </button>
+        <button
+          type="button"
+          class="rounded-2xl px-4 py-2 text-sm font-semibold transition"
+          [ngClass]="
+            proximityFilterEnabled()
+              ? 'border border-emerald-300 bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+              : 'border border-slate-300 bg-slate-100 text-slate-800 hover:bg-slate-200'
+          "
+          (click)="toggleProximityFilter()"
+          data-testid="stations-nearby-button"
+        >
+          {{ proximityFilterEnabled() ? 'Quitar cercania' : 'Filtrar por cercania (1 km)' }}
+        </button>
+      </div>
+    </div>
+
+    @if (locationMessage(); as message) {
+      <p class="mt-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-700">
+        {{ message }}
+      </p>
+    }
+  </section>
+
+  @if (isLoading()) {
+    <article
+      class="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-600 shadow-sm"
+    >
+      Cargando estaciones...
+    </article>
+  } @else if (errorMessage(); as message) {
+    <article
+      class="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm font-medium text-rose-700 shadow-sm"
+      data-testid="stations-error"
+    >
+      {{ message }}
+    </article>
+  } @else if (filteredStations().length === 0) {
+    <article
+      class="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-600 shadow-sm"
+      data-testid="stations-empty"
+    >
+      No hay estaciones que coincidan con los filtros actuales.
+    </article>
+  } @else {
+    <div class="grid gap-3" data-testid="stations-list">
+      <p class="mt-3 text-xs font-medium uppercase tracking-[0.08em] text-sky-700">
+        Click para ver las estaciones en el mapa
+      </p>
+      @for (station of filteredStations(); track station.id) {
+        <article
+          class="station-card rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+          [ngClass]="canOpenOnMap(station) ? 'station-card--interactive' : 'station-card--disabled'"
+          [attr.role]="canOpenOnMap(station) ? 'button' : null"
+          [attr.tabindex]="canOpenOnMap(station) ? 0 : -1"
+          [attr.aria-disabled]="canOpenOnMap(station) ? 'false' : 'true'"
+          [attr.aria-label]="
+            canOpenOnMap(station)
+              ? 'Ver estacion ' + station.name + ' en el mapa'
+              : 'Estacion sin ubicacion disponible'
+          "
+          (click)="openStationOnMap(station.id, canOpenOnMap(station))"
+          (keydown)="onStationKeydown($event, station.id, canOpenOnMap(station))"
+        >
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <h2 class="text-base font-semibold text-slate-900">{{ station.name }}</h2>
+            <div class="flex flex-wrap items-center gap-2">
+              <span
+                class="inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.07em]"
+                [ngClass]="availabilityBadgeClass(station)"
+                data-testid="station-availability-badge"
+              >
+                {{ station.availableBikes }}
+                {{ station.availableBikes === 1 ? 'bici' : 'bicis' }}
+              </span>
+
+              @if (!canOpenOnMap(station)) {
+                <span
+                  class="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.07em] text-amber-700"
+                >
+                  ubicacion no disponible
+                </span>
+              }
+            </div>
+          </div>
+
+          <dl class="mt-3 grid gap-2 text-sm sm:grid-cols-3">
+            <div>
+              <dt class="font-semibold text-slate-700">Direccion</dt>
+              <dd class="text-slate-600">{{ station.address ?? 'Sin direccion' }}</dd>
+            </div>
+
+            <div>
+              <dt class="font-semibold text-slate-700">Capacidad</dt>
+              <dd class="text-slate-600">{{ station.capacity }}</dd>
+            </div>
+
+            <div>
+              <dt class="font-semibold text-slate-700">Distancia</dt>
+              <dd class="text-slate-600">{{ formatDistance(station.distanceMeters) }}</dd>
+            </div>
+          </dl>
+        </article>
+      }
+    </div>
+  }
+</section>

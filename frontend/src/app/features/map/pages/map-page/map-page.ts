@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 
 import { Auth } from '../../../../core/auth/auth';
 import { MapStore } from '../../state/map.store';
@@ -13,10 +14,13 @@ import { LeafletMap } from '../../ui/leaflet-map/leaflet-map';
 })
 export class MapPage implements OnInit {
   private readonly auth = inject(Auth);
+  private readonly route = inject(ActivatedRoute);
 
   readonly mapStore = inject(MapStore);
   readonly isLocating = signal(false);
   readonly locationMessage = signal<string | null>(null);
+  readonly focusStationId = signal<number | null>(null);
+  readonly panToUser = signal(true);
 
   readonly nearestStationSummary = computed(() => {
     const station = this.mapStore.isReturnMode()
@@ -37,12 +41,15 @@ export class MapPage implements OnInit {
 
   ngOnInit(): void {
     this.mapStore.loadInitialData();
-    this.requestUserLocation();
+    const stationId = this.parseStationId(this.route.snapshot.queryParamMap.get('stationId'));
+    this.focusStationId.set(stationId);
+    this.requestUserLocation(stationId === null);
   }
 
-  requestUserLocation(): void {
+  requestUserLocation(allowMapPan = true): void {
     const geolocation = globalThis.navigator?.geolocation;
     this.mapStore.clearUnlockMessage();
+    this.panToUser.set(allowMapPan);
 
     if (!geolocation) {
       this.locationMessage.set('Este dispositivo no soporta geolocalizacion.');
@@ -108,5 +115,18 @@ export class MapPage implements OnInit {
       default:
         return 'No se pudo obtener tu ubicacion.';
     }
+  }
+
+  private parseStationId(value: string | null): number | null {
+    if (value === null) {
+      return null;
+    }
+
+    const parsed = Number(value);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      return null;
+    }
+
+    return parsed;
   }
 }

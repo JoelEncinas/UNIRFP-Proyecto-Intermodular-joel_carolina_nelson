@@ -3,3 +3,120 @@
   height: 100%;
   width: 100%;
 }
+
+:host ::ng-deep .leaflet-tooltip.map-station-tooltip {
+  border: 1px solid #e2e8f0;
+  border-radius: 9999px;
+  background: #ffffff;
+  color: #334155;
+  box-shadow: 0 10px 24px -18px rgba(15, 23, 42, 0.45);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.25;
+  padding: 0.25rem 0.55rem;
+  cursor: default !important;
+  pointer-events: auto;
+}
+
+:host ::ng-deep .leaflet-tooltip-top.map-station-tooltip::before {
+  border-top-color: #e2e8f0;
+}
+
+:host ::ng-deep .leaflet-tooltip-right.map-station-tooltip::before {
+  border-right-color: #e2e8f0;
+}
+
+:host ::ng-deep .leaflet-tooltip-left.map-station-tooltip::before {
+  border-left-color: #e2e8f0;
+}
+
+:host ::ng-deep .leaflet-tooltip-bottom.map-station-tooltip::before {
+  border-bottom-color: #e2e8f0;
+}
+
+:host ::ng-deep .map-station-marker-host {
+  background: transparent;
+  border: 0;
+}
+
+:host ::ng-deep .map-station-marker-host,
+:host ::ng-deep .map-station-marker-host * {
+  cursor: default !important;
+}
+
+:host ::ng-deep .map-station-marker__bubble {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  height: 2rem;
+  padding: 0 0.35rem;
+  border-radius: 9999px;
+  border: 2px solid var(--station-stroke);
+  background: var(--station-fill);
+  color: #0f172a;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 8px 16px -14px rgba(15, 23, 42, 0.55);
+}
+
+:host ::ng-deep .map-user-marker-host {
+  background: transparent;
+  border: 0;
+}
+
+:host ::ng-deep .map-user-marker {
+  position: relative;
+  display: inline-block;
+  width: 2.15rem;
+  height: 2.15rem;
+}
+
+:host ::ng-deep .map-user-marker__pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: rgba(34, 211, 238, 0.25);
+  animation: map-user-pulse 1.8s ease-in-out infinite;
+}
+
+:host ::ng-deep .map-user-marker__core {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0.8rem;
+  height: 0.8rem;
+  transform: translate(-50%, -50%);
+  border-radius: 9999px;
+  border: 2px solid #0f172a;
+  background: #22d3ee;
+  box-shadow: 0 0 0 2px #ffffff;
+}
+
+:host ::ng-deep .map-user-marker__ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 1.55rem;
+  height: 1.55rem;
+  transform: translate(-50%, -50%);
+  border-radius: 9999px;
+  border: 1.5px solid rgba(15, 23, 42, 0.35);
+}
+
+@keyframes map-user-pulse {
+  0% {
+    transform: scale(0.78);
+    opacity: 0.8;
+  }
+  70% {
+    transform: scale(1.18);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.18);
+    opacity: 0;
+  }
+}
