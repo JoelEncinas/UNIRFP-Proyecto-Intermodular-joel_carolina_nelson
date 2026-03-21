@@ -14,6 +14,10 @@ import * as L from 'leaflet';
 import { MapCoordinate } from '../../models/map.models';
 import { StationWithAvailability } from '../../models/station.model';
 
+const DEFAULT_MAP_ZOOM = 12;
+const STATION_FOCUS_ZOOM = 14;
+const FIT_BOUNDS_MAX_ZOOM = 14;
+
 @Component({
   selector: 'app-leaflet-map',
   imports: [],
@@ -64,7 +68,7 @@ export class LeafletMap implements AfterViewInit, OnDestroy {
     this.map = L.map(mapContainer, {
       zoomControl: true,
       attributionControl: true,
-    }).setView([40.416775, -3.70379], 13);
+    }).setView([40.416775, -3.70379], DEFAULT_MAP_ZOOM);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
@@ -131,18 +135,17 @@ export class LeafletMap implements AfterViewInit, OnDestroy {
       stationCoordinatesById.set(station.id, latLng);
 
       const available = station.availableBikes;
-      const hasAvailability = available > 0;
+      const tooltipLabel = this.buildStationTooltipLabel(station.name, available, station.capacity);
 
-      L.circleMarker(latLng, {
-        radius: 8,
-        color: hasAvailability ? '#0284c7' : '#64748b',
-        weight: 2,
-        fillColor: hasAvailability ? '#0ea5e9' : '#94a3b8',
-        fillOpacity: 0.9,
+      L.marker(latLng, {
+        icon: this.buildStationMarkerIcon(available, station.capacity),
       })
-        .bindPopup(
-          `<strong>${this.escapeHtml(station.name)}</strong><br/>Bicis disponibles: ${available}<br/>Capacidad: ${station.capacity}`,
-        )
+        .bindTooltip(tooltipLabel, {
+          direction: 'top',
+          offset: [0, -16],
+          opacity: 1,
+          className: 'map-station-tooltip',
+        })
         .addTo(this.stationsLayer);
     }
 
@@ -153,7 +156,9 @@ export class LeafletMap implements AfterViewInit, OnDestroy {
 
       if (focusCoordinates) {
         const currentZoom = this.map.getZoom();
-        const targetZoom = Number.isFinite(currentZoom) ? Math.max(currentZoom, 15) : 15;
+        const targetZoom = Number.isFinite(currentZoom)
+          ? Math.max(currentZoom, STATION_FOCUS_ZOOM)
+          : STATION_FOCUS_ZOOM;
         this.map.setView(focusCoordinates, targetZoom);
         this.lastFocusedStationId = focusStationId;
         this.hasInitializedView = true;
@@ -164,14 +169,11 @@ export class LeafletMap implements AfterViewInit, OnDestroy {
       const latLng = L.latLng(userLocation.latitude, userLocation.longitude);
       bounds.extend(latLng);
 
-      L.circleMarker(latLng, {
-        radius: 9,
-        color: '#0f172a',
-        weight: 2,
-        fillColor: '#22d3ee',
-        fillOpacity: 0.95,
+      L.marker(latLng, {
+        icon: this.buildUserMarkerIcon(),
+        interactive: false,
+        zIndexOffset: 2000,
       })
-        .bindPopup('Tu ubicacion')
         .addTo(this.userLayer);
 
       if (panToUser) {
@@ -180,10 +182,73 @@ export class LeafletMap implements AfterViewInit, OnDestroy {
     }
 
     if (!this.hasInitializedView && bounds.isValid()) {
-      this.map.fitBounds(bounds.pad(0.2));
+      this.map.fitBounds(bounds.pad(0.2), { maxZoom: FIT_BOUNDS_MAX_ZOOM });
       this.hasInitializedView = true;
       this.scheduleInvalidateSize([0, 120, 320]);
     }
+  }
+
+  private buildStationTooltipLabel(name: string, availableBikes: number, capacity: number): string {
+    const bikeLabel = availableBikes === 1 ? 'bici' : 'bicis';
+    const safeCapacity = Math.max(capacity, 0);
+    return `${this.escapeHtml(name)} · ${availableBikes}/${safeCapacity} ${bikeLabel}`;
+  }
+
+  private buildStationMarkerIcon(availableBikes: number, capacity: number): L.DivIcon {
+    const colors = this.resolveAvailabilityColors(availableBikes, capacity);
+    return L.divIcon({
+      className: 'map-station-marker-host',
+      iconSize: [38, 38],
+      iconAnchor: [19, 19],
+      tooltipAnchor: [0, -20],
+      html: `
+        <span
+          class="map-station-marker__bubble"
+          style="--station-stroke: ${colors.stroke}; --station-fill: ${colors.fill};"
+        >
+          ${availableBikes}
+        </span>
+      `,
+    });
+  }
+
+  private buildUserMarkerIcon(): L.DivIcon {
+    return L.divIcon({
+      className: 'map-user-marker-host',
+      iconSize: [36, 36],
+      iconAnchor: [18, 18],
+      html: `
+        <span class="map-user-marker">
+          <span class="map-user-marker__pulse"></span>
+          <span class="map-user-marker__core"></span>
+          <span class="map-user-marker__ring"></span>
+        </span>
+      `,
+    });
+  }
+
+  private resolveAvailabilityColors(
+    availableBikes: number,
+    capacity: number,
+  ): { stroke: string; fill: string } {
+    if (availableBikes <= 0) {
+      return { stroke: '#94a3b8', fill: '#e2e8f0' };
+    }
+
+    if (capacity <= 0) {
+      return { stroke: '#e11d48', fill: '#fda4af' };
+    }
+
+    const availabilityRatio = (availableBikes / capacity) * 100;
+    if (availabilityRatio > 66) {
+      return { stroke: '#059669', fill: '#6ee7b7' };
+    }
+
+    if (availabilityRatio >= 33) {
+      return { stroke: '#d97706', fill: '#fcd34d' };
+    }
+
+    return { stroke: '#e11d48', fill: '#fda4af' };
   }
 
   private escapeHtml(value: string): string {
