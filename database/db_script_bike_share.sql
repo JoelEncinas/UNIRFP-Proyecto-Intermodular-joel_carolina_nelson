@@ -91,7 +91,7 @@ payments,id,BIGINT,Unique ID for each financial transaction/receipt.
 -- users: 102 (2 ADMIN, 100 RIDER)
     --     USER / PASSWORD
     -- rider001 / asdasd
-    -- admin01  / asd asd
+    -- admin01  / asdasd
 -- bikes: 150 (city1: 75, city2: 75)
 -- bike statuses: AVAILABLE 120 | BOOKED 15 | BUSY 10 | MAINTENANCE 5
 -- station occupancy summary: 2 full (ids 1,2), 2 empty (ids 19,20), rest mixed
