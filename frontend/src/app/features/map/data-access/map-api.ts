@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '../../../core/config/api-base-url.token';
+import { buildApiUrl } from '../../../core/http/api-url';
 import { Bike } from '../models/bike.model';
 import { BookingSummary, CreateBookingRequest, ReturnBookingRequest } from '../models/map.models';
 import { Station } from '../models/station.model';
@@ -15,38 +16,36 @@ export class MapApi {
   private readonly apiBaseUrl = inject(API_BASE_URL);
 
   getStations(): Observable<Station[]> {
-    return this.http.get<Station[]>(this.buildUrl('/api/stations'));
+    return this.http.get<Station[]>(buildApiUrl(this.apiBaseUrl, '/api/stations'));
   }
 
   getAvailableBikes(): Observable<Bike[]> {
-    return this.http.get<Bike[]>(this.buildUrl('/api/bikes?status=AVAILABLE'));
+    return this.http.get<Bike[]>(buildApiUrl(this.apiBaseUrl, '/api/bikes?status=AVAILABLE'));
   }
   
   getAllBikes(): Observable<Bike[]> {
-    return this.http.get<Bike[]>(this.buildUrl('/api/bikes'));
+    return this.http.get<Bike[]>(buildApiUrl(this.apiBaseUrl, '/api/bikes'));
   }
 
   getMyBookings(): Observable<BookingSummary[]> {
-    return this.http.get<BookingSummary[]>(this.buildUrl('/api/bookings'));
+    return this.http.get<BookingSummary[]>(buildApiUrl(this.apiBaseUrl, '/api/bookings'));
   }
 
   createBooking(payload: CreateBookingRequest): Observable<BookingSummary> {
-    return this.http.post<BookingSummary>(this.buildUrl('/api/bookings'), payload);
+    return this.http.post<BookingSummary>(buildApiUrl(this.apiBaseUrl, '/api/bookings'), payload);
   }
 
   activateBooking(bookingId: number): Observable<BookingSummary> {
-    return this.http.post<BookingSummary>(this.buildUrl(`/api/bookings/${bookingId}/activate`), {});
+    return this.http.post<BookingSummary>(
+      buildApiUrl(this.apiBaseUrl, `/api/bookings/${bookingId}/activate`),
+      {},
+    );
   }
   
   returnBooking(bookingId: number, payload: ReturnBookingRequest): Observable<BookingSummary> {
-    return this.http.post<BookingSummary>(this.buildUrl(`/api/bookings/${bookingId}/return`), payload);
-  }
-
-  private buildUrl(path: string): string {
-    if (!this.apiBaseUrl) {
-      return path;
-    }
-
-    return `${this.apiBaseUrl.replace(/\/+$/, '')}${path}`;
+    return this.http.post<BookingSummary>(
+      buildApiUrl(this.apiBaseUrl, `/api/bookings/${bookingId}/return`),
+      payload,
+    );
   }
 }

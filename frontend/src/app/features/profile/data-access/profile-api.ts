@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '../../../core/config/api-base-url.token';
+import { buildApiUrl } from '../../../core/http/api-url';
 import { ProfileUpdateRequest, ProfileUser } from '../models/profile.models';
 
 @Injectable({
@@ -13,22 +14,14 @@ export class ProfileApi {
   private readonly apiBaseUrl = inject(API_BASE_URL);
 
   getMe(): Observable<ProfileUser> {
-    return this.http.get<ProfileUser>(this.buildUrl('/api/users/me'));
+    return this.http.get<ProfileUser>(buildApiUrl(this.apiBaseUrl, '/api/users/me'));
   }
 
   updateMe(payload: ProfileUpdateRequest): Observable<ProfileUser> {
-    return this.http.put<ProfileUser>(this.buildUrl('/api/users/me'), payload);
+    return this.http.put<ProfileUser>(buildApiUrl(this.apiBaseUrl, '/api/users/me'), payload);
   }
 
   deleteMe(): Observable<void> {
-    return this.http.delete<void>(this.buildUrl('/api/users/me'));
-  }
-
-  private buildUrl(path: '/api/users/me'): string {
-    if (!this.apiBaseUrl) {
-      return path;
-    }
-
-    return `${this.apiBaseUrl.replace(/\/+$/, '')}${path}`;
+    return this.http.delete<void>(buildApiUrl(this.apiBaseUrl, '/api/users/me'));
   }
 }
