@@ -32,10 +32,6 @@ public class JwtService {
         .compact();
   }
 
-  public String extractUsername(String token) {
-    return extractAllClaims(token).getSubject();
-  }
-
   public Long extractUserId(String token) {
     Object value = extractAllClaims(token).get(UID_CLAIM);
     if (value instanceof Integer intValue) {
