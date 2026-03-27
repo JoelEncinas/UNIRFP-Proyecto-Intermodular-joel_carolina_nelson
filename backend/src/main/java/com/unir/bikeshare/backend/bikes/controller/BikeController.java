@@ -37,9 +37,7 @@ public class BikeController {
             @RequestParam(required = false) Long stationId
     ) {
         if (status != null && stationId != null) {
-            return bikeService.getByStation(stationId).stream()
-                    .filter(b -> b.status() == status)
-                    .toList();
+            return bikeService.getByStationAndStatus(stationId, status);
         }
         if (status != null) return bikeService.getByStatus(status);
         if (stationId != null) return bikeService.getByStation(stationId);

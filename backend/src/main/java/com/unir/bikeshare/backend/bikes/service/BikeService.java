@@ -61,6 +61,14 @@ public class BikeService {
                 .map(BikeMapper::toResponse)
                 .toList();
     }
+
+    @Transactional(readOnly = true)
+    public List<BikeResponse> getByStationAndStatus(Long stationId, BikeStatus status) {
+        return bikeRepository.findByStationIdAndStatus(stationId, status)
+                .stream()
+                .map(BikeMapper::toResponse)
+                .toList();
+    }
 	
 	//CREATE
 	
