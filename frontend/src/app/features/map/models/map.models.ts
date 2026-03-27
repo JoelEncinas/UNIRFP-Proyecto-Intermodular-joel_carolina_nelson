@@ -1,24 +1,8 @@
-import { Bike } from './bike.model';
-import { Station } from './station.model';
+import { Bike } from '../../../shared/domain/bike.model';
+import { BookingSummary } from '../../../shared/domain/booking.model';
+import { Station } from '../../../shared/domain/station.model';
 
-export type BookingStatus = 'PENDING' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
-
-export interface BookingSummary {
-  id: number;
-  userId: number;
-  username: string;
-  bikeId: number;
-  bikeModel: string;
-  pickupStationId: number | null;
-  pickupStationName: string | null;
-  dropoffStationId: number | null;
-  dropoffStationName: string | null;
-  startTime: string;
-  expiryTime: string | null;
-  activatedAt: string | null;
-  returnedAt: string | null;
-  status: BookingStatus;
-}
+export type { BookingStatus, BookingSummary } from '../../../shared/domain/booking.model';
 
 export interface MapCoordinate {
   latitude: number;

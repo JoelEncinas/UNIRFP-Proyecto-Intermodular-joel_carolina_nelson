@@ -2,6 +2,10 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } 
 import { ActivatedRoute } from '@angular/router';
 
 import { Auth } from '../../../../core/auth/auth';
+import {
+  GEOLOCATION_REQUEST_OPTIONS,
+  getLocationErrorMessage,
+} from '../../../../shared/geo/location-errors';
 import { MapStore } from '../../state/map.store';
 import { LeafletMap } from '../../ui/leaflet-map/leaflet-map';
 
@@ -66,14 +70,10 @@ export class MapPage implements OnInit {
         this.isLocating.set(false);
       },
       (error) => {
-        this.locationMessage.set(this.toLocationErrorMessage(error.code));
+        this.locationMessage.set(getLocationErrorMessage(error.code, 'map'));
         this.isLocating.set(false);
       },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0,
-      },
+      GEOLOCATION_REQUEST_OPTIONS,
     );
   }
 
@@ -102,19 +102,6 @@ export class MapPage implements OnInit {
     }
 
     return `${Math.round(distanceMeters)} m`;
-  }
-
-  private toLocationErrorMessage(errorCode: number): string {
-    switch (errorCode) {
-      case 1:
-        return 'Permiso de ubicacion denegado. Activalo para desbloquear cerca de estaciones.';
-      case 2:
-        return 'No se pudo obtener tu ubicacion actual. Intentalo de nuevo.';
-      case 3:
-        return 'La solicitud de ubicacion tardo demasiado.';
-      default:
-        return 'No se pudo obtener tu ubicacion.';
-    }
   }
 
   private parseStationId(value: string | null): number | null {

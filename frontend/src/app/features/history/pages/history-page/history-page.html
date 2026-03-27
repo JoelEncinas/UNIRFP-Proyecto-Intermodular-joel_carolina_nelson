@@ -1,5 +1,5 @@
 <section class="mx-auto w-full max-w-5xl" data-testid="history-page-root">
-  <header class="mb-4 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+  <header class="ui-surface mb-4 px-5 py-4">
     <p class="m-0 text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Historial</p>
     <h1 class="mt-1 text-2xl font-bold text-slate-900">Tus ultimas reservas</h1>
     <p class="mt-1 text-sm text-slate-600">
@@ -9,7 +9,7 @@
 
   <section class="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4" data-testid="history-counters">
     @for (counter of statusCounters(); track counter.status) {
-      <article class="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+    <article class="ui-surface rounded-xl px-3 py-2">
         <p class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
           {{ statusLabel(counter.status) }}
         </p>
@@ -19,19 +19,19 @@
   </section>
 
   @if (isLoading()) {
-    <article class="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-600 shadow-sm">
+    <article class="ui-surface p-5 text-sm text-slate-600">
       Cargando historial...
     </article>
   } @else if (errorMessage(); as message) {
     <article
-      class="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm font-medium text-rose-700 shadow-sm"
+      class="ui-surface rounded-2xl border-rose-200 bg-rose-50 p-5 text-sm font-medium text-rose-700"
       data-testid="history-error"
     >
       {{ message }}
     </article>
   } @else if (orderedBookings().length === 0) {
     <article
-      class="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-600 shadow-sm"
+      class="ui-surface p-5 text-sm text-slate-600"
       data-testid="history-empty"
     >
       Aun no tienes reservas registradas.
@@ -39,7 +39,7 @@
   } @else {
     <div class="grid gap-3" data-testid="history-list">
       @for (booking of orderedBookings(); track booking.id) {
-        <article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <article class="ui-surface p-4">
           <div class="flex flex-wrap items-center justify-between gap-2">
             <h2 class="text-base font-semibold text-slate-900">
               Reserva #{{ booking.id }} · Bici #{{ booking.bikeId }} ({{ booking.bikeModel }})

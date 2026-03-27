@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 
 import { Auth } from '../../../../core/auth/auth';
@@ -10,7 +10,7 @@ import { RegisterForm } from '../../ui/register-form/register-form';
 
 @Component({
   selector: 'app-register-page',
-  imports: [RegisterForm],
+  imports: [RegisterForm, RouterLink],
   templateUrl: './register-page.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

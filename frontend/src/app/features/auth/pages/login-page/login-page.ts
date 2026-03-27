@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 
 import { Auth } from '../../../../core/auth/auth';
@@ -10,7 +10,7 @@ import { LoginForm } from '../../ui/login-form/login-form';
 
 @Component({
   selector: 'app-login-page',
-  imports: [LoginForm],
+  imports: [LoginForm, RouterLink],
   templateUrl: './login-page.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

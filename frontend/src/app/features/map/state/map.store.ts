@@ -2,10 +2,12 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { finalize, forkJoin, switchMap } from 'rxjs';
 
+import { Bike, BikeStatus } from '../../../shared/domain/bike.model';
+import { BookingStatus } from '../../../shared/domain/booking.model';
+import { Station, StationWithAvailability } from '../../../shared/domain/station.model';
+import { calculateDistanceMeters } from '../../../shared/geo/distance';
 import { MapApi } from '../data-access/map-api';
-import { Bike, BikeStatus } from '../models/bike.model';
-import { BookingStatus, MapCoordinate, MapLoadSnapshot } from '../models/map.models';
-import { Station, StationWithAvailability } from '../models/station.model';
+import { MapCoordinate, MapLoadSnapshot } from '../models/map.models';
 
 const ACTIVE_OR_PENDING_BOOKING_STATUSES: BookingStatus[] = ['PENDING', 'ACTIVE'];
 const DOCK_OCCUPYING_BIKE_STATUSES: BikeStatus[] = ['AVAILABLE', 'BOOKED', 'MAINTENANCE'];
@@ -72,7 +74,7 @@ export class MapStore {
       const availableDocks = Math.max(station.capacity - occupiedDocks, 0);
       const distanceMeters =
         location && station.latitude !== null && station.longitude !== null
-          ? this.calculateDistanceMeters(location, {
+          ? calculateDistanceMeters(location, {
               latitude: station.latitude,
               longitude: station.longitude,
             })
@@ -137,14 +139,14 @@ export class MapStore {
 
   readonly unlockButtonLabel = computed(() => {
     if (this.isReturnMode()) {
-      return this.canReturn() ? 'devolver bicicleta' : 'sin estaciones cercanas con espacio';
+      return this.canReturn() ? 'Devolver bicicleta' : 'sin estaciones cercanas con espacio';
     }
 
     if (this.hasActiveBooking()) {
       return 'ya tienes una bicicleta activa';
     }
 
-    return this.canUnlock() ? 'desbloquear bicicleta' : 'sin puestos cercanos, acercate mas';
+    return this.canUnlock() ? 'Desbloquear bicicleta' : 'sin puestos cercanos, acercate mas';
   });
 
   loadInitialData(): void {
@@ -297,25 +299,4 @@ export class MapStore {
     return apiMessage ?? fallback;
   }
 
-  private calculateDistanceMeters(from: MapCoordinate, to: MapCoordinate): number {
-    const earthRadiusMeters = 6371000;
-    const latitudeDelta = this.toRadians(to.latitude - from.latitude);
-    const longitudeDelta = this.toRadians(to.longitude - from.longitude);
-    const fromLatitude = this.toRadians(from.latitude);
-    const toLatitude = this.toRadians(to.latitude);
-
-    const haversine =
-      Math.sin(latitudeDelta / 2) * Math.sin(latitudeDelta / 2) +
-      Math.cos(fromLatitude) *
-        Math.cos(toLatitude) *
-        Math.sin(longitudeDelta / 2) *
-        Math.sin(longitudeDelta / 2);
-
-    const angularDistance = 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
-    return earthRadiusMeters * angularDistance;
-  }
-
-  private toRadians(value: number): number {
-    return (value * Math.PI) / 180;
-  }
 }

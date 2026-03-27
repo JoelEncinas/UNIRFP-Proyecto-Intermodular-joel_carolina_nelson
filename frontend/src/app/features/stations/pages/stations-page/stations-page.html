@@ -1,5 +1,5 @@
 <section class="mx-auto w-full max-w-5xl" data-testid="stations-page-root">
-  <header class="mb-4 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+  <header class="ui-surface mb-4 px-5 py-4">
     <p class="m-0 text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Estaciones</p>
     <h1 class="mt-1 text-2xl font-bold text-slate-900">Listado de estaciones</h1>
     <p class="mt-1 text-sm text-slate-600">
@@ -8,15 +8,15 @@
   </header>
 
   <section class="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-    <article class="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+    <article class="ui-surface rounded-xl px-3 py-2">
       <p class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Total</p>
       <p class="mt-1 text-xl font-bold text-slate-900">{{ stations().length }}</p>
     </article>
-    <article class="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+    <article class="ui-surface rounded-xl px-3 py-2">
       <p class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Visibles</p>
       <p class="mt-1 text-xl font-bold text-slate-900">{{ filteredStations().length }}</p>
     </article>
-    <article class="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+    <article class="ui-surface rounded-xl px-3 py-2">
       <p class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
         Filtro cercania
       </p>
@@ -26,7 +26,7 @@
     </article>
   </section>
 
-  <section class="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+  <section class="ui-surface mb-4 p-4">
     <div class="grid gap-2 sm:grid-cols-2">
       <label class="grid gap-1 text-sm font-medium text-slate-700">
         Buscar por nombre
@@ -75,20 +75,20 @@
 
   @if (isLoading()) {
     <article
-      class="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-600 shadow-sm"
+      class="ui-surface p-5 text-sm text-slate-600"
     >
       Cargando estaciones...
     </article>
   } @else if (errorMessage(); as message) {
     <article
-      class="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm font-medium text-rose-700 shadow-sm"
+      class="ui-surface border-rose-200 bg-rose-50 p-5 text-sm font-medium text-rose-700"
       data-testid="stations-error"
     >
       {{ message }}
     </article>
   } @else if (filteredStations().length === 0) {
     <article
-      class="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-600 shadow-sm"
+      class="ui-surface p-5 text-sm text-slate-600"
       data-testid="stations-empty"
     >
       No hay estaciones que coincidan con los filtros actuales.
@@ -100,7 +100,7 @@
       </p>
       @for (station of filteredStations(); track station.id) {
         <article
-          class="station-card rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+          class="station-card ui-surface p-4"
           [ngClass]="canOpenOnMap(station) ? 'station-card--interactive' : 'station-card--disabled'"
           [attr.role]="canOpenOnMap(station) ? 'button' : null"
           [attr.tabindex]="canOpenOnMap(station) ? 0 : -1"
