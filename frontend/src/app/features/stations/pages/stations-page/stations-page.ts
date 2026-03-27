@@ -4,6 +4,11 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } 
 import { Router } from '@angular/router';
 import { forkJoin } from 'rxjs';
 
+import { calculateDistanceMeters } from '../../../../shared/geo/distance';
+import {
+  GEOLOCATION_REQUEST_OPTIONS,
+  getLocationErrorMessage,
+} from '../../../../shared/geo/location-errors';
 import { Bike } from '../../../map/models/bike.model';
 import { MapCoordinate } from '../../../map/models/map.models';
 import { Station } from '../../../map/models/station.model';
@@ -46,7 +51,7 @@ export class StationsPage implements OnInit {
       availableBikes: countsByStation.get(station.id) ?? 0,
       distanceMeters:
         location && station.latitude !== null && station.longitude !== null
-          ? this.calculateDistanceMeters(location, {
+          ? calculateDistanceMeters(location, {
               latitude: station.latitude,
               longitude: station.longitude,
             })
@@ -128,14 +133,10 @@ export class StationsPage implements OnInit {
         this.isLocating.set(false);
       },
       (error) => {
-        this.locationMessage.set(this.toLocationErrorMessage(error.code));
+        this.locationMessage.set(getLocationErrorMessage(error.code, 'stations'));
         this.isLocating.set(false);
       },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0,
-      },
+      GEOLOCATION_REQUEST_OPTIONS,
     );
   }
 
@@ -233,41 +234,6 @@ export class StationsPage implements OnInit {
     }
 
     return counts;
-  }
-
-  private calculateDistanceMeters(from: MapCoordinate, to: MapCoordinate): number {
-    const earthRadiusMeters = 6371000;
-    const latitudeDelta = this.toRadians(to.latitude - from.latitude);
-    const longitudeDelta = this.toRadians(to.longitude - from.longitude);
-    const fromLatitude = this.toRadians(from.latitude);
-    const toLatitude = this.toRadians(to.latitude);
-
-    const haversine =
-      Math.sin(latitudeDelta / 2) * Math.sin(latitudeDelta / 2) +
-      Math.cos(fromLatitude) *
-        Math.cos(toLatitude) *
-        Math.sin(longitudeDelta / 2) *
-        Math.sin(longitudeDelta / 2);
-
-    const angularDistance = 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
-    return earthRadiusMeters * angularDistance;
-  }
-
-  private toRadians(value: number): number {
-    return (value * Math.PI) / 180;
-  }
-
-  private toLocationErrorMessage(errorCode: number): string {
-    switch (errorCode) {
-      case 1:
-        return 'Permiso de ubicacion denegado.';
-      case 2:
-        return 'No se pudo obtener la ubicacion actual.';
-      case 3:
-        return 'La solicitud de ubicacion tardo demasiado.';
-      default:
-        return 'No se pudo obtener tu ubicacion.';
-    }
   }
 
   private toErrorMessage(error: unknown): string {
