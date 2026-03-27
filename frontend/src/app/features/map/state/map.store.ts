@@ -139,14 +139,14 @@ export class MapStore {
 
   readonly unlockButtonLabel = computed(() => {
     if (this.isReturnMode()) {
-      return this.canReturn() ? 'devolver bicicleta' : 'sin estaciones cercanas con espacio';
+      return this.canReturn() ? 'Devolver bicicleta' : 'sin estaciones cercanas con espacio';
     }
 
     if (this.hasActiveBooking()) {
       return 'ya tienes una bicicleta activa';
     }
 
-    return this.canUnlock() ? 'desbloquear bicicleta' : 'sin puestos cercanos, acercate mas';
+    return this.canUnlock() ? 'Desbloquear bicicleta' : 'sin puestos cercanos, acercate mas';
   });
 
   loadInitialData(): void {
