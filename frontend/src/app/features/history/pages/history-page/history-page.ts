@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 
-import { BookingStatus, BookingSummary } from '../../../map/models/map.models';
+import { BookingStatus, BookingSummary } from '../../../../shared/domain/booking.model';
 import { HistoryApi } from '../../data-access/history-api';
 
 const BOOKING_STATUS_ORDER: BookingStatus[] = ['PENDING', 'ACTIVE', 'COMPLETED', 'CANCELLED'];

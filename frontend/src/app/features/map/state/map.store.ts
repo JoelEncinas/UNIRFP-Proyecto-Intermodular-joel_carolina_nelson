@@ -2,11 +2,12 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { finalize, forkJoin, switchMap } from 'rxjs';
 
+import { Bike, BikeStatus } from '../../../shared/domain/bike.model';
+import { BookingStatus } from '../../../shared/domain/booking.model';
+import { Station, StationWithAvailability } from '../../../shared/domain/station.model';
 import { calculateDistanceMeters } from '../../../shared/geo/distance';
 import { MapApi } from '../data-access/map-api';
-import { Bike, BikeStatus } from '../models/bike.model';
-import { BookingStatus, MapCoordinate, MapLoadSnapshot } from '../models/map.models';
-import { Station, StationWithAvailability } from '../models/station.model';
+import { MapCoordinate, MapLoadSnapshot } from '../models/map.models';
 
 const ACTIVE_OR_PENDING_BOOKING_STATUSES: BookingStatus[] = ['PENDING', 'ACTIVE'];
 const DOCK_OCCUPYING_BIKE_STATUSES: BikeStatus[] = ['AVAILABLE', 'BOOKED', 'MAINTENANCE'];

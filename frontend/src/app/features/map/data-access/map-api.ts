@@ -4,9 +4,10 @@ import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '../../../core/config/api-base-url.token';
 import { buildApiUrl } from '../../../core/http/api-url';
-import { Bike } from '../models/bike.model';
-import { BookingSummary, CreateBookingRequest, ReturnBookingRequest } from '../models/map.models';
-import { Station } from '../models/station.model';
+import { Bike } from '../../../shared/domain/bike.model';
+import { BookingSummary } from '../../../shared/domain/booking.model';
+import { Station } from '../../../shared/domain/station.model';
+import { CreateBookingRequest, ReturnBookingRequest } from '../models/map.models';
 
 @Injectable({
   providedIn: 'root',

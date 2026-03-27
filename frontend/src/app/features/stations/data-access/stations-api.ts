@@ -4,8 +4,8 @@ import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '../../../core/config/api-base-url.token';
 import { buildApiUrl } from '../../../core/http/api-url';
-import { Bike } from '../../map/models/bike.model';
-import { Station } from '../../map/models/station.model';
+import { Bike } from '../../../shared/domain/bike.model';
+import { Station } from '../../../shared/domain/station.model';
 
 @Injectable({
   providedIn: 'root',

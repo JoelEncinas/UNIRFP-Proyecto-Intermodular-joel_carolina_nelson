@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '../../../core/config/api-base-url.token';
 import { buildApiUrl } from '../../../core/http/api-url';
-import { BookingSummary } from '../../map/models/map.models';
+import { BookingSummary } from '../../../shared/domain/booking.model';
 
 @Injectable({
   providedIn: 'root',

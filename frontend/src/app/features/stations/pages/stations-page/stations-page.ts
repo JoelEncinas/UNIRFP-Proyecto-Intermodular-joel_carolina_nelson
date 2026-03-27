@@ -4,14 +4,13 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } 
 import { Router } from '@angular/router';
 import { forkJoin } from 'rxjs';
 
-import { calculateDistanceMeters } from '../../../../shared/geo/distance';
+import { Bike } from '../../../../shared/domain/bike.model';
+import { Station } from '../../../../shared/domain/station.model';
+import { GeoCoordinate, calculateDistanceMeters } from '../../../../shared/geo/distance';
 import {
   GEOLOCATION_REQUEST_OPTIONS,
   getLocationErrorMessage,
 } from '../../../../shared/geo/location-errors';
-import { Bike } from '../../../map/models/bike.model';
-import { MapCoordinate } from '../../../map/models/map.models';
-import { Station } from '../../../map/models/station.model';
 import { StationsApi } from '../../data-access/stations-api';
 
 interface StationListItem extends Station {
@@ -38,7 +37,7 @@ export class StationsPage implements OnInit {
   readonly locationMessage = signal<string | null>(null);
   readonly searchTerm = signal('');
   readonly proximityFilterEnabled = signal(false);
-  readonly userLocation = signal<MapCoordinate | null>(null);
+  readonly userLocation = signal<GeoCoordinate | null>(null);
   readonly stations = signal<Station[]>([]);
   readonly availableBikes = signal<Bike[]>([]);
 
