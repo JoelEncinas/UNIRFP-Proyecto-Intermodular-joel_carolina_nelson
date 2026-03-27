@@ -6,6 +6,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.unir.bikeshare.backend.common.exception.ConflictException;
 import com.unir.bikeshare.backend.common.exception.NotFoundException;
 import com.unir.bikeshare.backend.users.dto.UserResponse;
 import com.unir.bikeshare.backend.users.dto.UserUpdateRequest;
@@ -85,15 +86,37 @@ public class UserService {
 
     private void applyUpdateRequest(User user, UserUpdateRequest req) {
         if (req.username() != null) {
+            validateUsernameAvailableForUpdate(user, req.username());
             user.setUsername(req.username());
         }
 
         if (req.email() != null) {
+            validateEmailAvailableForUpdate(user, req.email());
             user.setEmail(req.email());
         }
 
         if (req.password() != null && !req.password().isBlank()) {
             user.setPassword(passwordEncoder.encode(req.password()));
+        }
+    }
+
+    private void validateUsernameAvailableForUpdate(User user, String newUsername) {
+        if (newUsername.equals(user.getUsername())) {
+            return;
+        }
+
+        if (userRepository.existsByUsername(newUsername)) {
+            throw new ConflictException("Username already exists");
+        }
+    }
+
+    private void validateEmailAvailableForUpdate(User user, String newEmail) {
+        if (newEmail.equals(user.getEmail())) {
+            return;
+        }
+
+        if (userRepository.existsByEmail(newEmail)) {
+            throw new ConflictException("Email already exists");
         }
     }
 }
