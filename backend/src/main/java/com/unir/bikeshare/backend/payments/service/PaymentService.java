@@ -2,9 +2,12 @@ package com.unir.bikeshare.backend.payments.service;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Objects;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.unir.bikeshare.backend.bookings.model.Booking;
 import com.unir.bikeshare.backend.bookings.repository.BookingRepository;
@@ -120,7 +123,14 @@ public class PaymentService {
      * @throws NotFoundException si userId o bookingId no existen
      * @throws BusinessException si amount <= 0 o si no hay saldo suficiente (APP_CREDIT + RENTAL_PAYMENT)
      */
-    public PaymentResponse create(PaymentCreateRequest req) {
+    public PaymentResponse create(PaymentCreateRequest req, Long requesterUserId, boolean requesterAdmin) {
+        if (!requesterAdmin && !Objects.equals(req.userId(), requesterUserId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only create payments for yourself");
+        }
+        return createInternal(req);
+    }
+
+    private PaymentResponse createInternal(PaymentCreateRequest req) {
 
     	//comprueba usuario y lo asigna
         User user = userRepository.findById(req.userId())

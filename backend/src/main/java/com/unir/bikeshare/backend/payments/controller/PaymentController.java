@@ -1,8 +1,10 @@
 package com.unir.bikeshare.backend.payments.controller;
 
 import java.util.List;
+import java.util.Objects;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -16,6 +18,8 @@ import com.unir.bikeshare.backend.payments.dto.PaymentCreateRequest;
 import com.unir.bikeshare.backend.payments.dto.PaymentResponse;
 import com.unir.bikeshare.backend.payments.dto.PaymentWebhookRequest;
 import com.unir.bikeshare.backend.payments.service.PaymentService;
+import com.unir.bikeshare.backend.security.CurrentUserAccessService;
+import com.unir.bikeshare.backend.users.dto.UserResponse;
 
 import jakarta.validation.Valid;
 
@@ -23,30 +27,57 @@ import jakarta.validation.Valid;
 @RequestMapping("/api/payments")
 public class PaymentController {
 	private final PaymentService paymentService;
+    private final CurrentUserAccessService currentUserAccessService;
 
-    public PaymentController(PaymentService paymentService) {
+    public PaymentController(PaymentService paymentService, CurrentUserAccessService currentUserAccessService) {
         this.paymentService = paymentService;
+        this.currentUserAccessService = currentUserAccessService;
     }
 
     @GetMapping
     public List<PaymentResponse> getAll(
             @RequestParam(required = false) Long userId,
-            @RequestParam(required = false) Long bookingId
+            @RequestParam(required = false) Long bookingId,
+            Authentication authentication
     ) {
+        if (!currentUserAccessService.isAdmin(authentication)) {
+            UserResponse currentUser = currentUserAccessService.getCurrentUser(authentication);
+
+            if (userId != null) {
+                currentUserAccessService.ensureUserOwnsResource(authentication, userId);
+            }
+
+            List<PaymentResponse> ownPayments = paymentService.getByUser(currentUser.id());
+            if (bookingId == null) {
+                return ownPayments;
+            }
+
+            return ownPayments.stream()
+                    .filter(payment -> Objects.equals(payment.bookingId(), bookingId))
+                    .toList();
+        }
+
         if (userId != null) return paymentService.getByUser(userId);
         if (bookingId != null) return paymentService.getByBooking(bookingId);
         return paymentService.getAll();
     }
 
     @GetMapping("/{id}")
-    public PaymentResponse getById(@PathVariable Long id) {
-        return paymentService.getById(id);
+    public PaymentResponse getById(@PathVariable Long id, Authentication authentication) {
+        PaymentResponse payment = paymentService.getById(id);
+        currentUserAccessService.ensureUserOwnsResource(authentication, payment.userId());
+        return payment;
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public PaymentResponse create(@RequestBody @Valid PaymentCreateRequest req) {
-        return paymentService.create(req);
+    public PaymentResponse create(@RequestBody @Valid PaymentCreateRequest req, Authentication authentication) {
+        boolean isAdmin = currentUserAccessService.isAdmin(authentication);
+        UserResponse currentUser = currentUserAccessService.getCurrentUser(authentication);
+        if (!isAdmin) {
+            currentUserAccessService.ensureUserOwnsResource(authentication, req.userId());
+        }
+        return paymentService.create(req, currentUser.id(), isAdmin);
     }
     
     //webhook falso, nos sirve para confirmar pagos de fuera de la app mientras no tenemos paypal/stripe
