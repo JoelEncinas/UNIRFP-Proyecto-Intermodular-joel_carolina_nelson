@@ -23,7 +23,7 @@ public class AuthService {
   private final AuthenticationManager authenticationManager;
   private final JwtService jwtService;
 
-  public AuthReponseDTO register(RegisterRequestDTO request) {
+  public AuthResponseDTO register(RegisterRequestDTO request) {
     if (userRepository.findByUsername(request.getUsername()).isPresent()) {
       throw new ResponseStatusException(HttpStatus.CONFLICT, "Username already exists");
     }
@@ -39,10 +39,10 @@ public class AuthService {
     user.setRole(UserRole.RIDER);
 
     User savedUser = userRepository.save(user);
-    return new AuthReponseDTO(jwtService.generateToken(savedUser));
+    return new AuthResponseDTO(jwtService.generateToken(savedUser));
   }
 
-  public AuthReponseDTO login(LoginRequestDTO request) {
+  public AuthResponseDTO login(LoginRequestDTO request) {
     final Authentication authentication;
 
     try {
@@ -59,6 +59,6 @@ public class AuthService {
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials"));
 
     String token = jwtService.generateToken(user);
-    return new AuthReponseDTO(token);
+    return new AuthResponseDTO(token);
   }
 }

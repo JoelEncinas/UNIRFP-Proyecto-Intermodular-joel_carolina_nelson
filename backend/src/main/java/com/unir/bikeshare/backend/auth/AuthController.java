@@ -14,12 +14,12 @@ public class AuthController {
   private final AuthService authService;
 
   @PostMapping("/register")
-  public AuthReponseDTO register(@RequestBody @Valid RegisterRequestDTO request) {
+  public AuthResponseDTO register(@RequestBody @Valid RegisterRequestDTO request) {
     return authService.register(request);
   }
 
   @PostMapping("/login")
-  public AuthReponseDTO login(@RequestBody @Valid LoginRequestDTO request) {
+  public AuthResponseDTO login(@RequestBody @Valid LoginRequestDTO request) {
     return authService.login(request);
   }
 

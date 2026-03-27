@@ -1,10 +1,10 @@
 package com.unir.bikeshare.backend.auth;
 
-import lombok.Data;
 import lombok.AllArgsConstructor;
+import lombok.Data;
 
 @Data
 @AllArgsConstructor
-public class AuthReponseDTO {
+public class AuthResponseDTO {
   private String token;
 }
