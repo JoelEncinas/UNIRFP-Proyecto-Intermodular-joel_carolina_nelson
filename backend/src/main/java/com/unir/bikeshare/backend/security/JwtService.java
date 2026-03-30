@@ -3,6 +3,7 @@ package com.unir.bikeshare.backend.security;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import com.unir.bikeshare.backend.users.model.User;
@@ -11,13 +12,14 @@ import javax.crypto.SecretKey;
 import java.util.Date;
 
 @Service
+@RequiredArgsConstructor
 public class JwtService {
 
-  private static final String SECRET_KEY = "bikesharebikesharebikesharebikesharebikeshare123456";
   private static final String UID_CLAIM = "uid";
+  private final JwtProperties jwtProperties;
 
   private SecretKey getSigningKey() {
-    return Keys.hmacShaKeyFor(SECRET_KEY.getBytes());
+    return Keys.hmacShaKeyFor(jwtProperties.getSecret().getBytes());
   }
 
   public String generateToken(User user) {
@@ -25,13 +27,9 @@ public class JwtService {
         .subject(user.getUsername())
         .claim(UID_CLAIM, user.getId())
         .issuedAt(new Date())
-        .expiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60))
+        .expiration(new Date(System.currentTimeMillis() + jwtProperties.getExpirationMs()))
         .signWith(getSigningKey())
         .compact();
-  }
-
-  public String extractUsername(String token) {
-    return extractAllClaims(token).getSubject();
   }
 
   public Long extractUserId(String token) {

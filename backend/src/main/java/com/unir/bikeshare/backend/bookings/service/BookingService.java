@@ -177,18 +177,6 @@ public class BookingService {
         return BookingMapper.toResponse(saved);
     }
     
-    public int expirePendingBefore(Instant cutoff) {
-        List<Booking> expired = bookingRepository.findByStatusAndExpiryTimeBefore(BookingStatus.PENDING, cutoff);
-
-        for (Booking b : expired) {
-            b.setStatus(BookingStatus.CANCELLED);
-            b.getBike().setStatus(BikeStatus.AVAILABLE);
-        }
-
-        bookingRepository.saveAll(expired);
-        return expired.size();
-    }
-    
     private void applyStatusChange(Booking booking, BookingStatus newStatus) {
         BookingStatus current = booking.getStatus();
         Bike bike = booking.getBike();

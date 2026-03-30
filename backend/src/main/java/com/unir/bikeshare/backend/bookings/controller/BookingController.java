@@ -5,7 +5,6 @@ import java.util.Objects;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -22,8 +21,8 @@ import com.unir.bikeshare.backend.bookings.dto.BookingResponse;
 import com.unir.bikeshare.backend.bookings.dto.BookingUpdateRequest;
 import com.unir.bikeshare.backend.bookings.model.BookingStatus;
 import com.unir.bikeshare.backend.bookings.service.BookingService;
+import com.unir.bikeshare.backend.security.CurrentUserAccessService;
 import com.unir.bikeshare.backend.users.dto.UserResponse;
-import com.unir.bikeshare.backend.users.service.UserService;
 
 import jakarta.validation.Valid;
 
@@ -31,11 +30,11 @@ import jakarta.validation.Valid;
 @RequestMapping("/api/bookings")
 public class BookingController {
 	private final BookingService bookingService;
-    private final UserService userService;
+    private final CurrentUserAccessService currentUserAccessService;
 
-    public BookingController(BookingService bookingService, UserService userService) {
+    public BookingController(BookingService bookingService, CurrentUserAccessService currentUserAccessService) {
         this.bookingService = bookingService;
-        this.userService = userService;
+        this.currentUserAccessService = currentUserAccessService;
     }
     
     @GetMapping
@@ -44,10 +43,10 @@ public class BookingController {
             @RequestParam(required = false) Long bikeId,
             Authentication authentication
     ) {
-        if (!isAdmin(authentication)) {
-            UserResponse currentUser = getCurrentUser(authentication);
-            if (userId != null && !Objects.equals(userId, currentUser.id())) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only access your own bookings");
+        if (!currentUserAccessService.isAdmin(authentication)) {
+            UserResponse currentUser = currentUserAccessService.getCurrentUser(authentication);
+            if (userId != null) {
+                currentUserAccessService.ensureUserOwnsResource(authentication, userId);
             }
 
             List<BookingResponse> ownBookings = bookingService.getByUser(currentUser.id());
@@ -75,11 +74,8 @@ public class BookingController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public BookingResponse create(@RequestBody @Valid BookingCreateRequest req, Authentication authentication) {
-        if (!isAdmin(authentication)) {
-            UserResponse currentUser = getCurrentUser(authentication);
-            if (!Objects.equals(req.userId(), currentUser.id())) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only create bookings for yourself");
-            }
+        if (!currentUserAccessService.isAdmin(authentication)) {
+            currentUserAccessService.ensureUserOwnsResource(authentication, req.userId());
         }
         return bookingService.create(req);
     }
@@ -116,23 +112,7 @@ public class BookingController {
         return bookingService.returnBike(id, request.stationId());
     }
 
-    private boolean isAdmin(Authentication authentication) {
-        return authentication.getAuthorities().stream()
-                .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
-    }
-
-    private UserResponse getCurrentUser(Authentication authentication) {
-        return userService.getByUsername(authentication.getName());
-    }
-
     private void ensureCanAccessBooking(Authentication authentication, BookingResponse booking) {
-        if (isAdmin(authentication)) {
-            return;
-        }
-
-        UserResponse currentUser = getCurrentUser(authentication);
-        if (!Objects.equals(booking.userId(), currentUser.id())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only access your own bookings");
-        }
+        currentUserAccessService.ensureUserOwnsResource(authentication, booking.userId());
     }
 }
