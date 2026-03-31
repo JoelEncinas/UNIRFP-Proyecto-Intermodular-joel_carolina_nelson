@@ -2,55 +2,71 @@ package com.unir.bikeshare.backend.payments.service;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.stripe.model.Event;
+import com.stripe.model.EventDataObjectDeserializer;
+import com.stripe.model.PaymentIntent;
+import com.stripe.model.StripeObject;
+import com.stripe.model.checkout.Session;
 import com.unir.bikeshare.backend.bookings.model.Booking;
 import com.unir.bikeshare.backend.bookings.repository.BookingRepository;
 import com.unir.bikeshare.backend.common.exception.BusinessException;
 import com.unir.bikeshare.backend.common.exception.NotFoundException;
+import com.unir.bikeshare.backend.payments.config.StripeProperties;
 import com.unir.bikeshare.backend.payments.dto.PaymentCreateRequest;
 import com.unir.bikeshare.backend.payments.dto.PaymentResponse;
+import com.unir.bikeshare.backend.payments.dto.PaymentWebhookRequest;
+import com.unir.bikeshare.backend.payments.dto.StripeCheckoutSessionCreateRequest;
+import com.unir.bikeshare.backend.payments.dto.StripeCheckoutSessionResponse;
 import com.unir.bikeshare.backend.payments.mapper.PaymentMapper;
 import com.unir.bikeshare.backend.payments.model.Payment;
 import com.unir.bikeshare.backend.payments.model.PaymentMethod;
+import com.unir.bikeshare.backend.payments.model.PaymentStatus;
 import com.unir.bikeshare.backend.payments.model.TransactionType;
 import com.unir.bikeshare.backend.payments.repository.PaymentRepository;
+import com.unir.bikeshare.backend.payments.stripe.StripeCheckoutSessionData;
+import com.unir.bikeshare.backend.payments.stripe.StripeGateway;
 import com.unir.bikeshare.backend.users.model.User;
 import com.unir.bikeshare.backend.users.repository.UserRepository;
-
 
 @Service
 @Transactional
 public class PaymentService {
-	
-	private final PaymentRepository paymentRepository;
+
+    private static final Logger log = LoggerFactory.getLogger(PaymentService.class);
+    private static final BigDecimal STRIPE_MIN_TOP_UP_AMOUNT = new BigDecimal("0.50");
+
+    private final PaymentRepository paymentRepository;
     private final UserRepository userRepository;
     private final BookingRepository bookingRepository;
+    private final StripeGateway stripeGateway;
+    private final StripeProperties stripeProperties;
 
     public PaymentService(
             PaymentRepository paymentRepository,
             UserRepository userRepository,
-            BookingRepository bookingRepository
+            BookingRepository bookingRepository,
+            StripeGateway stripeGateway,
+            StripeProperties stripeProperties
     ) {
         this.paymentRepository = paymentRepository;
         this.userRepository = userRepository;
         this.bookingRepository = bookingRepository;
+        this.stripeGateway = stripeGateway;
+        this.stripeProperties = stripeProperties;
     }
-    
-    //READ
 
-    /**
-     * Busca un pago por su id.
-     *
-     * @param id id del pago
-     * @return DTO de respuesta del pago
-     * @throws NotFoundException si no existe el pago
-     */
     @Transactional(readOnly = true)
     public PaymentResponse getById(Long id) {
         Payment payment = paymentRepository.findById(id)
@@ -58,9 +74,6 @@ public class PaymentService {
         return PaymentMapper.toResponse(payment);
     }
 
-    /**
-     * Devuelve todos los pagos.
-     */
     @Transactional(readOnly = true)
     public List<PaymentResponse> getAll() {
         return paymentRepository.findAll()
@@ -69,11 +82,6 @@ public class PaymentService {
                 .toList();
     }
 
-    /**
-     * Devuelve todos los pagos de un usuario.
-     *
-     * @param userId id del usuario
-     */
     @Transactional(readOnly = true)
     public List<PaymentResponse> getByUser(Long userId) {
         return paymentRepository.findByUserId(userId)
@@ -82,11 +90,6 @@ public class PaymentService {
                 .toList();
     }
 
-    /**
-     * Devuelve todos los pagos asociados a una booking.
-     *
-     * @param bookingId id de la booking
-     */
     @Transactional(readOnly = true)
     public List<PaymentResponse> getByBooking(Long bookingId) {
         return paymentRepository.findByBookingId(bookingId)
@@ -94,35 +97,7 @@ public class PaymentService {
                 .map(PaymentMapper::toResponse)
                 .toList();
     }
-    
-    //CREATE
 
-    /**
-     * Crea un pago.
-     *
-     * <p><b>Casos principales</b></p>
-     * <ul>
-     *   <li><b>APP_CREDIT</b>:
-     *      <ul>
-     *        <li>Si es TOP_UP → suma saldo.</li>
-     *        <li>Si es RENTAL_PAYMENT → valida si el saldo es suficiente y resta.</li>
-     *        <li>El pago se marca como SUCCESS inmediatamente.</li>
-     *      </ul>
-     *   </li>
-     *   <li><b>Método externo (CREDIT_CARD / PAYPAL)</b>:
-     *      <ul>
-     *        <li>Se crea el pago en estado PENDING (como "intent").</li>
-     *        <li>No se toca el balance del usuario aquí (espera confirmación).</li>
-     *        <li>Se asegura un sandboxReference y provider para poder "identificarlo" cuando llegue el webhook.</li>
-     *      </ul>
-     *   </li>
-     * </ul>
-     *
-     * @param req petición de creación del pago
-     * @return PaymentResponse con el pago creado
-     * @throws NotFoundException si userId o bookingId no existen
-     * @throws BusinessException si amount <= 0 o si no hay saldo suficiente (APP_CREDIT + RENTAL_PAYMENT)
-     */
     public PaymentResponse create(PaymentCreateRequest req, Long requesterUserId, boolean requesterAdmin) {
         if (!requesterAdmin && !Objects.equals(req.userId(), requesterUserId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only create payments for yourself");
@@ -130,25 +105,121 @@ public class PaymentService {
         return createInternal(req);
     }
 
-    private PaymentResponse createInternal(PaymentCreateRequest req) {
+    public StripeCheckoutSessionResponse createStripeCheckoutSession(
+            StripeCheckoutSessionCreateRequest req,
+            Long requesterUserId,
+            boolean requesterAdmin
+    ) {
+        if (!requesterAdmin && !Objects.equals(req.userId(), requesterUserId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only create payments for yourself");
+        }
 
-    	//comprueba usuario y lo asigna
+        if (req.amount() == null || req.amount().compareTo(STRIPE_MIN_TOP_UP_AMOUNT) < 0) {
+            throw new BusinessException("Amount must be at least 0.50");
+        }
+
         User user = userRepository.findById(req.userId())
                 .orElseThrow(() -> new NotFoundException("User not found"));
 
-        //comprueba que existe el booking y lo asigna
+        String successUrl = stripeProperties.getSuccessUrl();
+        String cancelUrl = stripeProperties.getCancelUrl();
+        if (successUrl == null || successUrl.isBlank() || cancelUrl == null || cancelUrl.isBlank()) {
+            throw new BusinessException("Stripe success/cancel URLs are not configured");
+        }
+
+        String currency = normalizeCurrency(stripeProperties.getCurrency());
+
+        StripeCheckoutSessionData sessionData = stripeGateway.createTopUpCheckoutSession(
+                user.getId(),
+                req.amount(),
+                currency,
+                successUrl,
+                cancelUrl
+        );
+
+        Payment payment = new Payment();
+        payment.setUser(user);
+        payment.setBooking(null);
+        payment.setAmount(req.amount());
+        payment.setProvider("stripe");
+        payment.setSandboxReference(sessionData.sessionId());
+        payment.setPaymentMethod(PaymentMethod.CREDIT_CARD);
+        payment.setTransactionType(TransactionType.TOP_UP);
+        payment.setPaymentStatus(PaymentStatus.PENDING);
+
+        Payment saved = paymentRepository.save(payment);
+
+        return new StripeCheckoutSessionResponse(
+                saved.getId(),
+                sessionData.sessionId(),
+                sessionData.checkoutUrl(),
+                saved.getPaymentStatus()
+        );
+    }
+
+    public void processStripeWebhook(String payload, String signatureHeader) {
+        Event event = stripeGateway.constructWebhookEvent(
+                payload,
+                signatureHeader,
+                stripeProperties.getWebhookSecret()
+        );
+
+        switch (event.getType()) {
+            case "checkout.session.completed" -> {
+                Session session = deserializeEventObject(event, Session.class);
+                if (session != null) {
+                    applyCheckoutSessionCompleted(session);
+                }
+            }
+            case "checkout.session.expired" -> {
+                Session session = deserializeEventObject(event, Session.class);
+                if (session != null) {
+                    markAsFailedIfPending(session.getId());
+                }
+            }
+            case "payment_intent.payment_failed" -> {
+                PaymentIntent paymentIntent = deserializeEventObject(event, PaymentIntent.class);
+                if (paymentIntent != null) {
+                    markFromFailedPaymentIntent(paymentIntent);
+                }
+            }
+            default -> log.debug("Stripe webhook event ignored: {}", event.getType());
+        }
+    }
+
+    public PaymentResponse confirmWebhook(PaymentWebhookRequest req) {
+        Payment payment = paymentRepository.findBySandboxReference(req.sandboxReference())
+                .orElseThrow(() -> new NotFoundException("Payment not found for sandboxReference"));
+
+        if (payment.getPaymentStatus() == PaymentStatus.SUCCESS) {
+            return PaymentMapper.toResponse(payment);
+        }
+
+        payment.setPaymentStatus(req.status());
+
+        if (req.status() == PaymentStatus.SUCCESS && payment.getTransactionType() == TransactionType.TOP_UP) {
+            User user = payment.getUser();
+            user.setBalance(user.getBalance().add(payment.getAmount()));
+        }
+
+        Payment saved = paymentRepository.save(payment);
+        return PaymentMapper.toResponse(saved);
+    }
+
+    private PaymentResponse createInternal(PaymentCreateRequest req) {
+        User user = userRepository.findById(req.userId())
+                .orElseThrow(() -> new NotFoundException("User not found"));
+
         Booking booking = null;
         if (req.bookingId() != null) {
             booking = bookingRepository.findById(req.bookingId())
                     .orElseThrow(() -> new NotFoundException("Booking not found"));
         }
 
-        // Validación extra por seguridad de la cantidad
         if (req.amount() == null || req.amount().compareTo(BigDecimal.ZERO) <= 0) {
             throw new BusinessException("Amount must be greater than 0");
         }
 
-        // Crear Payment entity
         Payment payment = new Payment();
         payment.setUser(user);
         payment.setBooking(booking);
@@ -157,18 +228,15 @@ public class PaymentService {
         payment.setSandboxReference(req.sandboxReference());
         payment.setPaymentMethod(req.paymentMethod());
         payment.setTransactionType(req.transactionType());
-        
-        if (req.paymentMethod() == PaymentMethod.APP_CREDIT) {
-            // Wallet interno: se cobra ya
-            applyWalletRules(user, req.transactionType(), req.amount());
-            payment.setPaymentStatus(com.unir.bikeshare.backend.payments.model.PaymentStatus.SUCCESS);
-        } else {
-            // Externo: se crea intent pendiente
-            payment.setPaymentStatus(com.unir.bikeshare.backend.payments.model.PaymentStatus.PENDING);
 
-            // Opcional: si no hay sandboxReference
+        if (req.paymentMethod() == PaymentMethod.APP_CREDIT) {
+            applyWalletRules(user, req.transactionType(), req.amount());
+            payment.setPaymentStatus(PaymentStatus.SUCCESS);
+        } else {
+            payment.setPaymentStatus(PaymentStatus.PENDING);
+
             if (payment.getSandboxReference() == null || payment.getSandboxReference().isBlank()) {
-                payment.setSandboxReference("sandbox_" + java.util.UUID.randomUUID());
+                payment.setSandboxReference("sandbox_" + UUID.randomUUID());
             }
             if (payment.getProvider() == null || payment.getProvider().isBlank()) {
                 payment.setProvider("sandbox");
@@ -178,91 +246,124 @@ public class PaymentService {
         Payment saved = paymentRepository.save(payment);
         return PaymentMapper.toResponse(saved);
     }
-    
-    // REGLAS DE WALLET
 
-    /**
-     * Aplica las reglas de negocio del "wallet" (saldo interno) sobre un usuario.
-     *
-     * <p>Se llama SOLO cuando el método es APP_CREDIT (credito de la app).</p>
-     *
-     * <ul>
-     *   <li>TOP_UP: suma el amount al balance.</li>
-     *   <li>RENTAL_PAYMENT: comprueba saldo suficiente y resta el amount.</li>
-     * </ul>
-     *
-     * @param user usuario al que se le modifica el balance
-     * @param type tipo de transacción (TOP_UP o RENTAL_PAYMENT)
-     * @param amount importe
-     * @throws BusinessException si el saldo es insuficiente en RENTAL_PAYMENT
-     */
     private void applyWalletRules(User user, TransactionType type, BigDecimal amount) {
-        if (type == TransactionType.TOP_UP) { //si aumenta el saldo dentro de la app
+        if (type == TransactionType.TOP_UP) {
             user.setBalance(user.getBalance().add(amount));
             return;
         }
-        // RENTAL_PAYMENT
+
         if (user.getBalance().compareTo(amount) < 0) {
             throw new BusinessException("Insufficient balance");
         }
         user.setBalance(user.getBalance().subtract(amount));
     }
-    
-    //webhook de mentira
-    
-    /**
-     * "Webhook de mentira" para simular el callback de una pasarela de pago externa.
-     *
-     * <p>En integraciones reales (Stripe/PayPal), este endpoint lo llama la pasarela cuando un pago cambia de estado:
-     * SUCCESS / FAILED / CANCELLED.</p>
-     *
-     * <p><b>Por qué existe</b></p>
-     * <ul>
-     *   <li>Permite modelar el flujo real: Payment PENDING → confirmación → SUCCESS/FAILED.</li>
-     *   <li>Evita asumir que un pago externo siempre tiene éxito inmediatamente.</li>
-     *   <li>Hace el backend compatible con integraciones futuras sin reescribir el dominio.</li>
-     * </ul>
-     *
-     * <p><b>Idempotencia básica</b></p>
-     * <ul>
-     *   <li>Si el pago ya está SUCCESS, no se vuelve a aplicar nada (evita duplicados).</li>
-     * </ul>
-     *
-     * <p><b>Efecto sobre el balance</b></p>
-     * <ul>
-     *   <li>Si el pago es externo y se confirma SUCCESS:</li>
-     *   <li>TOP_UP: ahora sí sumamos balance (porque ya se ha pagado de verdad).</li>
-     *   <li>RENTAL_PAYMENT: NO tocamos balance (el dinero vino de fuera, no de la wallet).</li>
-     * </ul>
-     *
-     * @param req request con sandboxReference + nuevo status
-     * @return PaymentResponse actualizado
-     * @throws NotFoundException si no existe ningún pago con ese sandboxReference
-     */
-    public PaymentResponse confirmWebhook(com.unir.bikeshare.backend.payments.dto.PaymentWebhookRequest req) {
 
-        Payment payment = paymentRepository.findBySandboxReference(req.sandboxReference())
-                .orElseThrow(() -> new NotFoundException("Payment not found for sandboxReference"));
-
-        // Si ya está SUCCESS, no hacemos nada (idempotencia básica)
-        if (payment.getPaymentStatus() == com.unir.bikeshare.backend.payments.model.PaymentStatus.SUCCESS) {
-            return PaymentMapper.toResponse(payment);
+    private void applyCheckoutSessionCompleted(Session session) {
+        String sessionId = session.getId();
+        if (sessionId == null || sessionId.isBlank()) {
+            log.warn("Stripe checkout.session.completed missing session id");
+            return;
         }
 
-        payment.setPaymentStatus(req.status());
-
-        // Si el pago externo se confirma como SUCCESS, aplicamos efecto interno solo si procede
-        if (req.status() == com.unir.bikeshare.backend.payments.model.PaymentStatus.SUCCESS) {
-            // TOP_UP externo -> suma balance ahora (porque ahora sí “se pagó”)
-            if (payment.getTransactionType() == TransactionType.TOP_UP) {
-                User user = payment.getUser();
-                user.setBalance(user.getBalance().add(payment.getAmount()));
-            }
-            // RENTAL_PAYMENT externo -> no toca balance (dinero viene de fuera)
+        Optional<Payment> paymentOptional = paymentRepository.findBySandboxReference(sessionId);
+        if (paymentOptional.isEmpty()) {
+            log.warn("Stripe webhook session not mapped to payment: {}", sessionId);
+            return;
         }
 
-        Payment saved = paymentRepository.save(payment);
-        return PaymentMapper.toResponse(saved);
+        Payment payment = paymentOptional.get();
+        if (isTerminalStatus(payment.getPaymentStatus())) {
+            return;
+        }
+
+        payment.setPaymentStatus(PaymentStatus.SUCCESS);
+        if (payment.getTransactionType() == TransactionType.TOP_UP) {
+            User user = payment.getUser();
+            user.setBalance(user.getBalance().add(payment.getAmount()));
+        }
+        paymentRepository.save(payment);
     }
 
+    private void markAsFailedIfPending(String sessionId) {
+        if (sessionId == null || sessionId.isBlank()) {
+            log.warn("Stripe failed event missing session id");
+            return;
+        }
+
+        Optional<Payment> paymentOptional = paymentRepository.findBySandboxReference(sessionId);
+        if (paymentOptional.isEmpty()) {
+            log.warn("Stripe webhook session not mapped to payment: {}", sessionId);
+            return;
+        }
+
+        Payment payment = paymentOptional.get();
+        if (payment.getPaymentStatus() != PaymentStatus.PENDING) {
+            return;
+        }
+
+        payment.setPaymentStatus(PaymentStatus.FAILED);
+        paymentRepository.save(payment);
+    }
+
+    private void markFromFailedPaymentIntent(PaymentIntent paymentIntent) {
+        if (paymentIntent.getMetadata() == null) {
+            log.warn("payment_intent.payment_failed without metadata");
+            return;
+        }
+
+        String paymentIdRaw = paymentIntent.getMetadata().get("paymentId");
+        if (paymentIdRaw != null && !paymentIdRaw.isBlank()) {
+            try {
+                long paymentId = Long.parseLong(paymentIdRaw);
+                paymentRepository.findById(paymentId).ifPresent(payment -> {
+                    if (payment.getPaymentStatus() == PaymentStatus.PENDING) {
+                        payment.setPaymentStatus(PaymentStatus.FAILED);
+                        paymentRepository.save(payment);
+                    }
+                });
+                return;
+            } catch (NumberFormatException ex) {
+                log.warn("Invalid paymentId metadata in payment_intent.payment_failed: {}", paymentIdRaw);
+            }
+        }
+
+        String checkoutSessionId = paymentIntent.getMetadata().get("checkoutSessionId");
+        if (checkoutSessionId != null && !checkoutSessionId.isBlank()) {
+            markAsFailedIfPending(checkoutSessionId);
+            return;
+        }
+
+        log.warn("payment_intent.payment_failed could not be mapped to local payment");
+    }
+
+    private String normalizeCurrency(String currency) {
+        if (currency == null || currency.isBlank()) {
+            return "eur";
+        }
+        return currency.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private boolean isTerminalStatus(PaymentStatus status) {
+        return status == PaymentStatus.SUCCESS
+                || status == PaymentStatus.FAILED
+                || status == PaymentStatus.CANCELLED;
+    }
+
+    private <T extends StripeObject> T deserializeEventObject(Event event, Class<T> expectedType) {
+        EventDataObjectDeserializer dataObjectDeserializer = event.getDataObjectDeserializer();
+        Optional<StripeObject> stripeObjectOptional = dataObjectDeserializer.getObject();
+        if (stripeObjectOptional.isEmpty()) {
+            log.warn("Unable to deserialize Stripe event object for event {}", event.getType());
+            return null;
+        }
+
+        StripeObject stripeObject = stripeObjectOptional.get();
+        if (!expectedType.isInstance(stripeObject)) {
+            log.warn("Unexpected Stripe event object type for {}: {}", event.getType(), stripeObject.getClass().getName());
+            return null;
+        }
+
+        return expectedType.cast(stripeObject);
+    }
 }
