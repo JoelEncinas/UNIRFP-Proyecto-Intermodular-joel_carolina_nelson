@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.stripe.Stripe;
 import com.stripe.model.Event;
 import com.stripe.model.EventDataObjectDeserializer;
 import com.stripe.model.PaymentIntent;
@@ -358,10 +359,24 @@ public class PaymentService {
         if (stripeObjectOptional.isPresent()) {
             stripeObject = stripeObjectOptional.get();
         } else {
+            String eventApiVersion = normalizeApiVersion(event.getApiVersion());
+            String sdkApiVersion = normalizeApiVersion(Stripe.API_VERSION);
+            if (!isApiVersionMismatch(eventApiVersion, sdkApiVersion)) {
+                log.warn(
+                        "Safe Stripe event deserialization failed for event {} but no API version mismatch detected " +
+                                "(eventApiVersion={}, sdkApiVersion={}). Unsafe fallback skipped.",
+                        event.getType(),
+                        eventApiVersion,
+                        sdkApiVersion
+                );
+                return null;
+            }
             log.warn(
-                    "Safe Stripe event deserialization failed for event {} (apiVersion={}). Trying unsafe fallback.",
+                    "Safe Stripe event deserialization failed for event {} and API version mismatch was detected " +
+                            "(eventApiVersion={}, sdkApiVersion={}). Trying unsafe fallback.",
                     event.getType(),
-                    event.getApiVersion()
+                    eventApiVersion,
+                    sdkApiVersion
             );
             try {
                 stripeObject = dataObjectDeserializer.deserializeUnsafe();
@@ -388,5 +403,20 @@ public class PaymentService {
         }
 
         return expectedType.cast(stripeObject);
+    }
+
+    private boolean isApiVersionMismatch(String eventApiVersion, String sdkApiVersion) {
+        if (eventApiVersion == null || sdkApiVersion == null) {
+            return false;
+        }
+        return !eventApiVersion.equalsIgnoreCase(sdkApiVersion);
+    }
+
+    private String normalizeApiVersion(String apiVersion) {
+        if (apiVersion == null) {
+            return null;
+        }
+        String normalized = apiVersion.trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 }
