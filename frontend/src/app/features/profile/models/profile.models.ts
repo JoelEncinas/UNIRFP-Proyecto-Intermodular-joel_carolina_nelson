@@ -12,3 +12,17 @@ export interface ProfileUpdateRequest {
   email?: string;
   password?: string;
 }
+
+export interface StripeCheckoutSessionCreateRequest {
+  userId: number;
+  amount: number;
+}
+
+export type ProfilePaymentStatus = 'PENDING' | 'SUCCESS' | 'FAILED' | 'CANCELLED';
+
+export interface StripeCheckoutSessionResponse {
+  paymentId: number;
+  sessionId: string;
+  checkoutUrl: string;
+  paymentStatus: ProfilePaymentStatus;
+}
