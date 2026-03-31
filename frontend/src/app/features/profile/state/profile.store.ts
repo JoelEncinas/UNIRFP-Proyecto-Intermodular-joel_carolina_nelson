@@ -12,6 +12,14 @@ export type EditableField = 'username' | 'email' | 'password';
 export type StripePaymentReturnState = 'success' | 'cancel' | null;
 
 const STRIPE_MIN_TOP_UP_AMOUNT = 0.5;
+const STRIPE_SUCCESS_REFRESH_RETRIES = 3;
+const STRIPE_SUCCESS_REFRESH_INTERVAL_MS = 1500;
+
+type LoadProfileOptions = {
+  clearMessages?: boolean;
+  successMessage?: string;
+  suppressError?: boolean;
+};
 
 @Injectable()
 export class ProfileStore {
@@ -46,6 +54,7 @@ export class ProfileStore {
   readonly topUpForm = this.formBuilder.group({
     topUpAmount: [5, [Validators.required, Validators.min(STRIPE_MIN_TOP_UP_AMOUNT)]],
   });
+  private stripeSuccessPollTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
   readonly userInitial = computed(() => {
     const username = this.profile()?.username ?? '';
@@ -56,17 +65,17 @@ export class ProfileStore {
   });
 
   loadInitialData(): void {
+    this.clearStripeSuccessPolling();
     this.loadProfile();
   }
 
   handleStripeReturn(paymentQuery: StripePaymentReturnState): void {
+    this.clearStripeSuccessPolling();
+
     if (paymentQuery === 'success') {
       this.successMessage.set('Pago recibido. Actualizando saldo...');
       this.errorMessage.set(null);
-      this.loadProfile({
-        clearMessages: false,
-        successMessage: 'Recarga confirmada. Saldo actualizado.',
-      });
+      this.refreshProfileAfterStripeSuccess();
       return;
     }
 
@@ -210,7 +219,7 @@ export class ProfileStore {
       });
   }
 
-  private loadProfile(options?: { clearMessages?: boolean; successMessage?: string }): void {
+  private loadProfile(options?: LoadProfileOptions): void {
     const clearMessages = options?.clearMessages ?? true;
 
     this.isLoading.set(true);
@@ -236,9 +245,37 @@ export class ProfileStore {
           }
         },
         error: (error: unknown) => {
-          this.errorMessage.set(this.toErrorMessage(error, 'No se pudo cargar el perfil.'));
+          if (!options?.suppressError) {
+            this.errorMessage.set(this.toErrorMessage(error, 'No se pudo cargar el perfil.'));
+          }
         },
       });
+  }
+
+  private refreshProfileAfterStripeSuccess(attempt = 0): void {
+    const isFinalAttempt = attempt >= STRIPE_SUCCESS_REFRESH_RETRIES;
+    this.loadProfile({
+      clearMessages: false,
+      successMessage: 'Recarga confirmada. Saldo actualizado.',
+      suppressError: !isFinalAttempt,
+    });
+
+    if (isFinalAttempt) {
+      this.clearStripeSuccessPolling();
+      return;
+    }
+
+    this.clearStripeSuccessPolling();
+    this.stripeSuccessPollTimeoutId = setTimeout(() => {
+      this.refreshProfileAfterStripeSuccess(attempt + 1);
+    }, STRIPE_SUCCESS_REFRESH_INTERVAL_MS);
+  }
+
+  private clearStripeSuccessPolling(): void {
+    if (this.stripeSuccessPollTimeoutId !== null) {
+      clearTimeout(this.stripeSuccessPollTimeoutId);
+      this.stripeSuccessPollTimeoutId = null;
+    }
   }
 
   private buildSingleFieldPayload(field: EditableField): ProfileUpdateRequest | null {
