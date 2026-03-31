@@ -19,6 +19,7 @@ import com.stripe.model.EventDataObjectDeserializer;
 import com.stripe.model.PaymentIntent;
 import com.stripe.model.StripeObject;
 import com.stripe.model.checkout.Session;
+import com.stripe.exception.EventDataObjectDeserializationException;
 import com.unir.bikeshare.backend.bookings.model.Booking;
 import com.unir.bikeshare.backend.bookings.repository.BookingRepository;
 import com.unir.bikeshare.backend.common.exception.BusinessException;
@@ -352,13 +353,35 @@ public class PaymentService {
 
     private <T extends StripeObject> T deserializeEventObject(Event event, Class<T> expectedType) {
         EventDataObjectDeserializer dataObjectDeserializer = event.getDataObjectDeserializer();
+        StripeObject stripeObject;
         Optional<StripeObject> stripeObjectOptional = dataObjectDeserializer.getObject();
-        if (stripeObjectOptional.isEmpty()) {
-            log.warn("Unable to deserialize Stripe event object for event {}", event.getType());
-            return null;
+        if (stripeObjectOptional.isPresent()) {
+            stripeObject = stripeObjectOptional.get();
+        } else {
+            log.warn(
+                    "Safe Stripe event deserialization failed for event {} (apiVersion={}). Trying unsafe fallback.",
+                    event.getType(),
+                    event.getApiVersion()
+            );
+            try {
+                stripeObject = dataObjectDeserializer.deserializeUnsafe();
+            } catch (EventDataObjectDeserializationException ex) {
+                log.warn(
+                        "Unsafe Stripe event deserialization failed for event {}: {}",
+                        event.getType(),
+                        ex.getMessage()
+                );
+                return null;
+            } catch (RuntimeException ex) {
+                log.warn(
+                        "Unexpected error during unsafe Stripe event deserialization for event {}: {}",
+                        event.getType(),
+                        ex.getMessage()
+                );
+                return null;
+            }
         }
 
-        StripeObject stripeObject = stripeObjectOptional.get();
         if (!expectedType.isInstance(stripeObject)) {
             log.warn("Unexpected Stripe event object type for {}: {}", event.getType(), stripeObject.getClass().getName());
             return null;
