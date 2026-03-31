@@ -34,8 +34,14 @@ export class ProfilePage implements OnInit {
 
   ngOnInit(): void {
     const paymentQuery = this.route.snapshot.queryParamMap.get('payment');
-    this.profileStore.handleStripeReturn(this.toStripePaymentReturnState(paymentQuery));
-    this.profileStore.loadInitialData();
+    const paymentState = this.toStripePaymentReturnState(paymentQuery);
+
+    if (paymentState === 'success') {
+      this.profileStore.handleStripeReturn(paymentState);
+    } else {
+      this.profileStore.loadInitialData();
+      this.profileStore.handleStripeReturn(paymentState);
+    }
 
     if (paymentQuery !== null) {
       void this.router.navigate([], {
