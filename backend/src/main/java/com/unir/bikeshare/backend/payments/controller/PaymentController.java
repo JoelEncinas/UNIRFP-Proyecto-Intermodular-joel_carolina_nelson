@@ -3,12 +3,14 @@ package com.unir.bikeshare.backend.payments.controller;
 import java.util.List;
 import java.util.Objects;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -17,6 +19,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.unir.bikeshare.backend.payments.dto.PaymentCreateRequest;
 import com.unir.bikeshare.backend.payments.dto.PaymentResponse;
 import com.unir.bikeshare.backend.payments.dto.PaymentWebhookRequest;
+import com.unir.bikeshare.backend.payments.dto.StripeCheckoutSessionCreateRequest;
+import com.unir.bikeshare.backend.payments.dto.StripeCheckoutSessionResponse;
 import com.unir.bikeshare.backend.payments.service.PaymentService;
 import com.unir.bikeshare.backend.security.CurrentUserAccessService;
 import com.unir.bikeshare.backend.users.dto.UserResponse;
@@ -85,5 +89,28 @@ public class PaymentController {
     @PostMapping("/webhook")
     public PaymentResponse webhook(@RequestBody @Valid PaymentWebhookRequest req) {
         return paymentService.confirmWebhook(req);
+    }
+
+    @PostMapping("/stripe/checkout-session")
+    @ResponseStatus(HttpStatus.CREATED)
+    public StripeCheckoutSessionResponse createStripeCheckoutSession(
+            @RequestBody @Valid StripeCheckoutSessionCreateRequest req,
+            Authentication authentication
+    ) {
+        boolean isAdmin = currentUserAccessService.isAdmin(authentication);
+        UserResponse currentUser = currentUserAccessService.getCurrentUser(authentication);
+        if (!isAdmin) {
+            currentUserAccessService.ensureUserOwnsResource(authentication, req.userId());
+        }
+        return paymentService.createStripeCheckoutSession(req, currentUser.id(), isAdmin);
+    }
+
+    @PostMapping("/stripe/webhook")
+    public ResponseEntity<Void> stripeWebhook(
+            @RequestBody String payload,
+            @RequestHeader("Stripe-Signature") String signatureHeader
+    ) {
+        paymentService.processStripeWebhook(payload, signatureHeader);
+        return ResponseEntity.ok().build();
     }
 }
