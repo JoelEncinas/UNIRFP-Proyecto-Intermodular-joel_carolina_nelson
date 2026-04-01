@@ -175,7 +175,7 @@ public class PaymentService {
             case "checkout.session.expired" -> {
                 Session session = deserializeEventObject(event, Session.class);
                 if (session != null) {
-                    markAsFailedIfPending(session.getId());
+                    markAsCancelledIfPending(session.getId());
                 }
             }
             case "payment_intent.payment_failed" -> {
@@ -186,6 +186,30 @@ public class PaymentService {
             }
             default -> log.debug("Stripe webhook event ignored: {}", event.getType());
         }
+    }
+
+    public void cancelStripeCheckoutSession(String sessionId, Long requesterUserId, boolean requesterAdmin) {
+        if (sessionId == null || sessionId.isBlank()) {
+            throw new BusinessException("Stripe session id is required");
+        }
+
+        Optional<Payment> paymentOptional = paymentRepository.findBySandboxReference(sessionId);
+        if (paymentOptional.isEmpty()) {
+            log.warn("Stripe cancel requested for unknown session: {}", sessionId);
+            return;
+        }
+
+        Payment payment = paymentOptional.get();
+        if (!requesterAdmin && !Objects.equals(payment.getUser().getId(), requesterUserId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only cancel your own payments");
+        }
+
+        if (payment.getPaymentStatus() != PaymentStatus.PENDING) {
+            return;
+        }
+
+        payment.setPaymentStatus(PaymentStatus.CANCELLED);
+        paymentRepository.save(payment);
     }
 
     private PaymentResponse createInternal(PaymentCreateRequest req) {
@@ -285,6 +309,27 @@ public class PaymentService {
         }
 
         payment.setPaymentStatus(PaymentStatus.FAILED);
+        paymentRepository.save(payment);
+    }
+
+    private void markAsCancelledIfPending(String sessionId) {
+        if (sessionId == null || sessionId.isBlank()) {
+            log.warn("Stripe cancelled event missing session id");
+            return;
+        }
+
+        Optional<Payment> paymentOptional = paymentRepository.findBySandboxReference(sessionId);
+        if (paymentOptional.isEmpty()) {
+            log.warn("Stripe webhook session not mapped to payment: {}", sessionId);
+            return;
+        }
+
+        Payment payment = paymentOptional.get();
+        if (payment.getPaymentStatus() != PaymentStatus.PENDING) {
+            return;
+        }
+
+        payment.setPaymentStatus(PaymentStatus.CANCELLED);
         paymentRepository.save(payment);
     }
 

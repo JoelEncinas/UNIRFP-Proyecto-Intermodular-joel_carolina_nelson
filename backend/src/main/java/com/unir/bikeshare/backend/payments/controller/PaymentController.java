@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.unir.bikeshare.backend.payments.dto.PaymentCreateRequest;
 import com.unir.bikeshare.backend.payments.dto.PaymentResponse;
+import com.unir.bikeshare.backend.payments.dto.StripeCheckoutSessionCancelRequest;
 import com.unir.bikeshare.backend.payments.dto.StripeCheckoutSessionCreateRequest;
 import com.unir.bikeshare.backend.payments.dto.StripeCheckoutSessionResponse;
 import com.unir.bikeshare.backend.payments.service.PaymentService;
@@ -95,6 +96,17 @@ public class PaymentController {
             currentUserAccessService.ensureUserOwnsResource(authentication, req.userId());
         }
         return paymentService.createStripeCheckoutSession(req, currentUser.id(), isAdmin);
+    }
+
+    @PostMapping("/stripe/cancel")
+    public ResponseEntity<Void> cancelStripeCheckoutSession(
+            @RequestBody @Valid StripeCheckoutSessionCancelRequest req,
+            Authentication authentication
+    ) {
+        boolean isAdmin = currentUserAccessService.isAdmin(authentication);
+        UserResponse currentUser = currentUserAccessService.getCurrentUser(authentication);
+        paymentService.cancelStripeCheckoutSession(req.sessionId(), currentUser.id(), isAdmin);
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/stripe/webhook")
