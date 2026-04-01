@@ -15,11 +15,15 @@ const STRIPE_MIN_TOP_UP_AMOUNT = 0.5;
 const STRIPE_SUCCESS_REFRESH_RETRIES = 3;
 const STRIPE_SUCCESS_REFRESH_INTERVAL_MS = 1500;
 const STRIPE_PENDING_SESSION_STORAGE_KEY = 'bikeshare.pendingStripeSessionId';
+const STRIPE_PENDING_BASELINE_BALANCE_STORAGE_KEY = 'bikeshare.pendingStripeBaselineBalance';
 
 type LoadProfileOptions = {
   clearMessages?: boolean;
   successMessage?: string;
   suppressError?: boolean;
+  silentLoading?: boolean;
+  onLoaded?: (profile: ProfileUser) => void;
+  onError?: () => void;
 };
 
 @Injectable()
@@ -140,6 +144,10 @@ export class ProfileStore {
       .subscribe({
         next: (response) => {
           this.savePendingStripeSessionId(response.sessionId);
+          const currentBalance = this.profile()?.balance;
+          if (currentBalance != null) {
+            this.savePendingStripeBaselineBalance(currentBalance);
+          }
           window.location.assign(response.checkoutUrl);
         },
         error: (error: unknown) => {
@@ -234,8 +242,11 @@ export class ProfileStore {
 
   private loadProfile(options?: LoadProfileOptions): void {
     const clearMessages = options?.clearMessages ?? true;
+    const silentLoading = options?.silentLoading ?? false;
 
-    this.isLoading.set(true);
+    if (!silentLoading) {
+      this.isLoading.set(true);
+    }
     this.errorMessage.set(null);
     if (clearMessages) {
       this.successMessage.set(null);
@@ -244,7 +255,13 @@ export class ProfileStore {
 
     this.profileApi
       .getMe()
-      .pipe(finalize(() => this.isLoading.set(false)))
+      .pipe(
+        finalize(() => {
+          if (!silentLoading) {
+            this.isLoading.set(false);
+          }
+        }),
+      )
       .subscribe({
         next: (profile) => {
           this.profile.set(profile);
@@ -253,6 +270,7 @@ export class ProfileStore {
             email: profile.email,
             password: '',
           });
+          options?.onLoaded?.(profile);
           if (options?.successMessage) {
             this.successMessage.set(options.successMessage);
           }
@@ -261,27 +279,51 @@ export class ProfileStore {
           if (!options?.suppressError) {
             this.errorMessage.set(this.toErrorMessage(error, 'No se pudo cargar el perfil.'));
           }
+          options?.onError?.();
         },
       });
   }
 
-  private refreshProfileAfterStripeSuccess(attempt = 0): void {
+  private refreshProfileAfterStripeSuccess(
+    attempt = 0,
+    baselineBalance = this.consumePendingStripeBaselineBalance(),
+  ): void {
     const isFinalAttempt = attempt >= STRIPE_SUCCESS_REFRESH_RETRIES;
+
+    const scheduleNextRefresh = (): void => {
+      this.clearStripeSuccessPolling();
+      this.stripeSuccessPollTimeoutId = setTimeout(() => {
+        this.refreshProfileAfterStripeSuccess(attempt + 1, baselineBalance);
+      }, STRIPE_SUCCESS_REFRESH_INTERVAL_MS);
+    };
+
     this.loadProfile({
       clearMessages: false,
-      successMessage: 'Recarga confirmada. Saldo actualizado.',
       suppressError: !isFinalAttempt,
+      silentLoading: true,
+      onLoaded: (profile) => {
+        if (this.balancesDiffer(profile.balance, baselineBalance)) {
+          this.clearStripeSuccessPolling();
+          this.successMessage.set('Recarga confirmada. Saldo actualizado.');
+          return;
+        }
+
+        if (isFinalAttempt) {
+          this.clearStripeSuccessPolling();
+          this.successMessage.set('Pago recibido. El saldo puede tardar unos segundos en actualizarse.');
+          return;
+        }
+
+        scheduleNextRefresh();
+      },
+      onError: () => {
+        if (isFinalAttempt) {
+          this.clearStripeSuccessPolling();
+          return;
+        }
+        scheduleNextRefresh();
+      },
     });
-
-    if (isFinalAttempt) {
-      this.clearStripeSuccessPolling();
-      return;
-    }
-
-    this.clearStripeSuccessPolling();
-    this.stripeSuccessPollTimeoutId = setTimeout(() => {
-      this.refreshProfileAfterStripeSuccess(attempt + 1);
-    }, STRIPE_SUCCESS_REFRESH_INTERVAL_MS);
   }
 
   private clearStripeSuccessPolling(): void {
@@ -383,6 +425,37 @@ export class ProfileStore {
       storage.removeItem(STRIPE_PENDING_SESSION_STORAGE_KEY);
     });
     return storedSessionId;
+  }
+
+  private savePendingStripeBaselineBalance(balance: number): void {
+    if (!Number.isFinite(balance)) {
+      return;
+    }
+
+    this.withSessionStorage((storage) => {
+      storage.setItem(STRIPE_PENDING_BASELINE_BALANCE_STORAGE_KEY, String(balance));
+    });
+  }
+
+  private consumePendingStripeBaselineBalance(): number | null {
+    let baselineBalanceRaw: string | null = null;
+    this.withSessionStorage((storage) => {
+      baselineBalanceRaw = storage.getItem(STRIPE_PENDING_BASELINE_BALANCE_STORAGE_KEY);
+      storage.removeItem(STRIPE_PENDING_BASELINE_BALANCE_STORAGE_KEY);
+    });
+    return this.parseStoredBalance(baselineBalanceRaw);
+  }
+
+  private parseStoredBalance(rawValue: string | null): number | null {
+    if (rawValue == null) {
+      return null;
+    }
+    const parsed = Number(rawValue);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  private balancesDiffer(currentBalance: number, baselineBalance: number | null): boolean {
+    return baselineBalance != null && Math.abs(currentBalance - baselineBalance) > 0.0001;
   }
 
   private withSessionStorage(action: (storage: Storage) => void): void {
