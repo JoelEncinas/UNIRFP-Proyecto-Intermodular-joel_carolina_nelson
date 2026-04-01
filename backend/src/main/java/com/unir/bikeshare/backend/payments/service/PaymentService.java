@@ -28,7 +28,6 @@ import com.unir.bikeshare.backend.common.exception.NotFoundException;
 import com.unir.bikeshare.backend.payments.config.StripeProperties;
 import com.unir.bikeshare.backend.payments.dto.PaymentCreateRequest;
 import com.unir.bikeshare.backend.payments.dto.PaymentResponse;
-import com.unir.bikeshare.backend.payments.dto.PaymentWebhookRequest;
 import com.unir.bikeshare.backend.payments.dto.StripeCheckoutSessionCreateRequest;
 import com.unir.bikeshare.backend.payments.dto.StripeCheckoutSessionResponse;
 import com.unir.bikeshare.backend.payments.mapper.PaymentMapper;
@@ -187,25 +186,6 @@ public class PaymentService {
             }
             default -> log.debug("Stripe webhook event ignored: {}", event.getType());
         }
-    }
-
-    public PaymentResponse confirmWebhook(PaymentWebhookRequest req) {
-        Payment payment = paymentRepository.findBySandboxReference(req.sandboxReference())
-                .orElseThrow(() -> new NotFoundException("Payment not found for sandboxReference"));
-
-        if (payment.getPaymentStatus() == PaymentStatus.SUCCESS) {
-            return PaymentMapper.toResponse(payment);
-        }
-
-        payment.setPaymentStatus(req.status());
-
-        if (req.status() == PaymentStatus.SUCCESS && payment.getTransactionType() == TransactionType.TOP_UP) {
-            User user = payment.getUser();
-            user.setBalance(user.getBalance().add(payment.getAmount()));
-        }
-
-        Payment saved = paymentRepository.save(payment);
-        return PaymentMapper.toResponse(saved);
     }
 
     private PaymentResponse createInternal(PaymentCreateRequest req) {
