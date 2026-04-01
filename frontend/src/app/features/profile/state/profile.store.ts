@@ -258,7 +258,7 @@ export class ProfileStore {
       .getMe()
       .pipe(
         finalize(() => {
-          if (!silentLoading) {
+          if (!silentLoading || this.isLoading()) {
             this.isLoading.set(false);
           }
         }),
