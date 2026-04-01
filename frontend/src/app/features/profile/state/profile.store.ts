@@ -87,6 +87,7 @@ export class ProfileStore {
 
     if (paymentQuery === 'cancel') {
       const pendingSessionId = this.consumePendingStripeSessionId();
+      this.consumePendingStripeBaselineBalance();
       this.errorMessage.set(null);
       this.successMessage.set('Recarga cancelada. No se ha realizado ningun cargo.');
       if (pendingSessionId != null) {
