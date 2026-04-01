@@ -18,6 +18,10 @@ export interface StripeCheckoutSessionCreateRequest {
   amount: number;
 }
 
+export interface StripeCheckoutSessionCancelRequest {
+  sessionId: string;
+}
+
 export type ProfilePaymentStatus = 'PENDING' | 'SUCCESS' | 'FAILED' | 'CANCELLED';
 
 export interface StripeCheckoutSessionResponse {

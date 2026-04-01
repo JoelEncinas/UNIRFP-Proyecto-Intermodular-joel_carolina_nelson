@@ -14,6 +14,7 @@ export type StripePaymentReturnState = 'success' | 'cancel' | null;
 const STRIPE_MIN_TOP_UP_AMOUNT = 0.5;
 const STRIPE_SUCCESS_REFRESH_RETRIES = 3;
 const STRIPE_SUCCESS_REFRESH_INTERVAL_MS = 1500;
+const STRIPE_PENDING_SESSION_STORAGE_KEY = 'bikeshare.pendingStripeSessionId';
 
 type LoadProfileOptions = {
   clearMessages?: boolean;
@@ -73,6 +74,7 @@ export class ProfileStore {
     this.clearStripeSuccessPolling();
 
     if (paymentQuery === 'success') {
+      this.consumePendingStripeSessionId();
       this.successMessage.set('Pago recibido. Actualizando saldo...');
       this.errorMessage.set(null);
       this.refreshProfileAfterStripeSuccess();
@@ -80,8 +82,18 @@ export class ProfileStore {
     }
 
     if (paymentQuery === 'cancel') {
+      const pendingSessionId = this.consumePendingStripeSessionId();
       this.errorMessage.set(null);
       this.successMessage.set('Recarga cancelada. No se ha realizado ningun cargo.');
+      if (pendingSessionId != null) {
+        this.profileApi.cancelStripeCheckoutSession({ sessionId: pendingSessionId }).subscribe({
+          error: (error: unknown) => {
+            this.errorMessage.set(
+              this.toErrorMessage(error, 'No se pudo registrar la cancelacion de la recarga.'),
+            );
+          },
+        });
+      }
     }
   }
 
@@ -127,6 +139,7 @@ export class ProfileStore {
       .pipe(finalize(() => this.topUpInProgress.set(false)))
       .subscribe({
         next: (response) => {
+          this.savePendingStripeSessionId(response.sessionId);
           window.location.assign(response.checkoutUrl);
         },
         error: (error: unknown) => {
@@ -350,5 +363,37 @@ export class ProfileStore {
 
   private normalizeAmount(amount: number): number {
     return Math.round(amount * 100) / 100;
+  }
+
+  private savePendingStripeSessionId(sessionId: string): void {
+    const normalized = sessionId.trim();
+    if (!normalized) {
+      return;
+    }
+
+    this.withSessionStorage((storage) => {
+      storage.setItem(STRIPE_PENDING_SESSION_STORAGE_KEY, normalized);
+    });
+  }
+
+  private consumePendingStripeSessionId(): string | null {
+    let storedSessionId: string | null = null;
+    this.withSessionStorage((storage) => {
+      storedSessionId = storage.getItem(STRIPE_PENDING_SESSION_STORAGE_KEY);
+      storage.removeItem(STRIPE_PENDING_SESSION_STORAGE_KEY);
+    });
+    return storedSessionId;
+  }
+
+  private withSessionStorage(action: (storage: Storage) => void): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    try {
+      action(window.sessionStorage);
+    } catch {
+      // Ignore browser storage failures (privacy mode, blocked storage, etc.)
+    }
   }
 }
