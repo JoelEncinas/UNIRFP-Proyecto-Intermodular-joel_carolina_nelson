@@ -28,6 +28,7 @@ import com.unir.bikeshare.backend.common.exception.NotFoundException;
 import com.unir.bikeshare.backend.payments.config.RentalPaymentProperties;
 import com.unir.bikeshare.backend.payments.config.StripeProperties;
 import com.unir.bikeshare.backend.payments.dto.PaymentConfigResponse;
+import com.unir.bikeshare.backend.payments.dto.PaymentCheckoutSessionCreateRequest;
 import com.unir.bikeshare.backend.payments.dto.PaymentCreateRequest;
 import com.unir.bikeshare.backend.payments.dto.PaymentResponse;
 import com.unir.bikeshare.backend.payments.dto.StripeCheckoutSessionCreateRequest;
@@ -169,6 +170,22 @@ public class PaymentService {
                 sessionData.sessionId(),
                 sessionData.checkoutUrl(),
                 saved.getPaymentStatus()
+        );
+    }
+
+    public StripeCheckoutSessionResponse createCheckoutSession(
+            PaymentCheckoutSessionCreateRequest req,
+            Long requesterUserId,
+            boolean requesterAdmin
+    ) {
+        if (req.transactionType() != TransactionType.TOP_UP) {
+            throw new BusinessException("Use booking unlock flow for rental payments");
+        }
+
+        return createStripeCheckoutSession(
+                new StripeCheckoutSessionCreateRequest(req.userId(), req.amount()),
+                requesterUserId,
+                requesterAdmin
         );
     }
 
