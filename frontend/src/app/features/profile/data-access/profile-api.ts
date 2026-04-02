@@ -5,6 +5,7 @@ import { Observable } from 'rxjs';
 import { API_BASE_URL } from '../../../core/config/api-base-url.token';
 import { buildApiUrl } from '../../../core/http/api-url';
 import {
+  ProfilePayment,
   StripeCheckoutSessionCancelRequest,
   ProfileUpdateRequest,
   ProfileUser,
@@ -21,6 +22,10 @@ export class ProfileApi {
 
   getMe(): Observable<ProfileUser> {
     return this.http.get<ProfileUser>(buildApiUrl(this.apiBaseUrl, '/api/users/me'));
+  }
+
+  getPayments(): Observable<ProfilePayment[]> {
+    return this.http.get<ProfilePayment[]>(buildApiUrl(this.apiBaseUrl, '/api/payments'));
   }
 
   updateMe(payload: ProfileUpdateRequest): Observable<ProfileUser> {

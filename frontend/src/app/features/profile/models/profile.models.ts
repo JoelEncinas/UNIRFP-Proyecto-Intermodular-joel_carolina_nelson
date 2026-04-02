@@ -24,6 +24,20 @@ export interface StripeCheckoutSessionCancelRequest {
 }
 
 export type ProfilePaymentStatus = 'PENDING' | 'SUCCESS' | 'FAILED' | 'CANCELLED';
+export type ProfileTransactionType = 'TOP_UP' | 'RENTAL_PAYMENT';
+
+export interface ProfilePayment {
+  id: number;
+  userId: number;
+  bookingId: number | null;
+  amount: number;
+  provider: string | null;
+  sandboxReference: string | null;
+  paymentMethod: string;
+  transactionType: ProfileTransactionType;
+  paymentStatus: ProfilePaymentStatus;
+  paymentDate: string;
+}
 
 export interface StripeCheckoutSessionResponse {
   paymentId: number;
