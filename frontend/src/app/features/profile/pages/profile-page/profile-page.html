@@ -195,6 +195,42 @@
         <hr class="my-5 border-slate-200" />
 
         <section>
+          <h2 class="text-base font-semibold text-slate-900">Historial de pagos</h2>
+          <p class="mt-1 text-sm text-slate-600">
+            Ultimos 20 movimientos (recargas y pagos de desbloqueo).
+          </p>
+
+          @if (paymentHistory().length === 0) {
+            <p class="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+              Aun no hay pagos registrados para este usuario.
+            </p>
+          } @else {
+            <ul class="mt-3 grid gap-2">
+              @for (payment of paymentHistory(); track payment.id) {
+                <li class="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                  <div class="flex items-start justify-between gap-3">
+                    <div>
+                      <p class="text-sm font-semibold text-slate-900">
+                        {{ payment.transactionType === 'TOP_UP' ? 'Recarga de saldo' : 'Pago de desbloqueo' }}
+                      </p>
+                      <p class="text-xs text-slate-500">
+                        {{ payment.paymentDate | date: 'dd/MM/yyyy HH:mm' }} · {{ payment.provider || 'stripe' }}
+                      </p>
+                    </div>
+                    <div class="text-right">
+                      <p class="text-sm font-semibold text-slate-900">{{ payment.amount | number: '1.2-2' }} EUR</p>
+                      <p class="text-xs text-slate-600">{{ payment.paymentStatus }}</p>
+                    </div>
+                  </div>
+                </li>
+              }
+            </ul>
+          }
+        </section>
+
+        <hr class="my-5 border-slate-200" />
+
+        <section>
           <h2 class="text-base font-semibold text-slate-900">Zona de riesgo</h2>
           @if (!isDeleteConfirmationVisible()) {
             <button
