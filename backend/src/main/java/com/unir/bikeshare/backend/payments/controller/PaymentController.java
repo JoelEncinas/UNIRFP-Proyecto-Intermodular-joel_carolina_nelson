@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.unir.bikeshare.backend.payments.dto.PaymentCreateRequest;
+import com.unir.bikeshare.backend.payments.dto.PaymentConfigResponse;
 import com.unir.bikeshare.backend.payments.dto.PaymentResponse;
 import com.unir.bikeshare.backend.payments.dto.StripeCheckoutSessionCancelRequest;
 import com.unir.bikeshare.backend.payments.dto.StripeCheckoutSessionCreateRequest;
@@ -36,6 +37,11 @@ public class PaymentController {
     public PaymentController(PaymentService paymentService, CurrentUserAccessService currentUserAccessService) {
         this.paymentService = paymentService;
         this.currentUserAccessService = currentUserAccessService;
+    }
+
+    @GetMapping("/config")
+    public PaymentConfigResponse getConfig() {
+        return paymentService.getPaymentConfig();
     }
 
     @GetMapping
