@@ -16,6 +16,7 @@ export interface ProfileUpdateRequest {
 export interface StripeCheckoutSessionCreateRequest {
   userId: number;
   amount: number;
+  transactionType: 'TOP_UP' | 'RENTAL_PAYMENT';
 }
 
 export interface StripeCheckoutSessionCancelRequest {

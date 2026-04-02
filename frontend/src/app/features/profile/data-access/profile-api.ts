@@ -31,13 +31,13 @@ export class ProfileApi {
     payload: StripeCheckoutSessionCreateRequest,
   ): Observable<StripeCheckoutSessionResponse> {
     return this.http.post<StripeCheckoutSessionResponse>(
-      buildApiUrl(this.apiBaseUrl, '/api/payments/stripe/checkout-session'),
+      buildApiUrl(this.apiBaseUrl, '/api/payments/checkout-session'),
       payload,
     );
   }
 
   cancelStripeCheckoutSession(payload: StripeCheckoutSessionCancelRequest): Observable<void> {
-    return this.http.post<void>(buildApiUrl(this.apiBaseUrl, '/api/payments/stripe/cancel'), payload);
+    return this.http.post<void>(buildApiUrl(this.apiBaseUrl, '/api/payments/checkout-session/cancel'), payload);
   }
 
   deleteMe(): Observable<void> {

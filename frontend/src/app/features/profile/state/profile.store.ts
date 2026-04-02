@@ -140,7 +140,7 @@ export class ProfileStore {
     this.topUpInProgress.set(true);
 
     this.profileApi
-      .createStripeCheckoutSession({ userId, amount })
+      .createStripeCheckoutSession({ userId, amount, transactionType: 'TOP_UP' })
       .pipe(finalize(() => this.topUpInProgress.set(false)))
       .subscribe({
         next: (response) => {
