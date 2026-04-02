@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.unir.bikeshare.backend.bookings.dto.BookingCreateRequest;
+import com.unir.bikeshare.backend.bookings.dto.BookingCreatePaymentResponse;
 import com.unir.bikeshare.backend.bookings.dto.BookingReturnRequest;
 import com.unir.bikeshare.backend.bookings.dto.BookingResponse;
 import com.unir.bikeshare.backend.bookings.dto.BookingUpdateRequest;
@@ -73,7 +74,7 @@ public class BookingController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public BookingResponse create(@RequestBody @Valid BookingCreateRequest req, Authentication authentication) {
+    public BookingCreatePaymentResponse create(@RequestBody @Valid BookingCreateRequest req, Authentication authentication) {
         if (!currentUserAccessService.isAdmin(authentication)) {
             currentUserAccessService.ensureUserOwnsResource(authentication, req.userId());
         }
