@@ -40,6 +40,7 @@ import com.unir.bikeshare.backend.users.repository.UserRepository;
 @Transactional
 public class BookingService {
     private static final long PENDING_RESERVATION_WINDOW_SECONDS = 15 * 60;
+    private static final String MANUAL_REVIEW_SUFFIX = "|manual-review";
 
     private static final List<BookingStatus> ACTIVE_OR_PENDING = List.of(
             BookingStatus.PENDING,
@@ -125,6 +126,89 @@ public class BookingService {
             case SALDO -> createWalletUnlock(req, user, bike);
             case STRIPE -> createStripeUnlockPending(req, user, bike);
         };
+    }
+
+    public BookingCreatePaymentResponse finalizeStripeUnlock(Long bookingId, String sessionId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new NotFoundException("Booking not found"));
+
+        if (booking.getStatus() != BookingStatus.PENDING) {
+            throw new BusinessException("Only pending Stripe bookings can be finalized");
+        }
+
+        Payment payment = paymentRepository.findByBookingIdAndSandboxReference(bookingId, sessionId)
+                .orElseThrow(() -> new BusinessException("Stripe payment was not found for this booking"));
+
+        if (booking.getExpiryTime() != null && Instant.now().isAfter(booking.getExpiryTime())) {
+            cancelExpiredPendingStripeReservation(booking, payment);
+            throw new BusinessException("Pending booking has expired");
+        }
+
+        if (payment.getPaymentStatus() != PaymentStatus.SUCCESS) {
+            throw new BusinessException("Stripe payment is not completed yet");
+        }
+
+        Bike bike = booking.getBike();
+        if (bike.getStatus() != BikeStatus.BOOKED) {
+            cancelPendingBooking(booking);
+            handleStripeRefundOrManualReview(payment);
+            bookingRepository.save(booking);
+            paymentRepository.save(payment);
+            throw new BusinessException("Bike is not reserved for activation");
+        }
+
+        booking.setStatus(BookingStatus.ACTIVE);
+        if (booking.getActivatedAt() == null) {
+            booking.setActivatedAt(Instant.now());
+        }
+        bike.setStatus(BikeStatus.BUSY);
+        bike.setStation(null);
+        Booking savedBooking = bookingRepository.save(booking);
+
+        return new BookingCreatePaymentResponse(
+                BookingMapper.toResponse(savedBooking),
+                BookingUnlockPaymentMethod.STRIPE,
+                payment.getPaymentStatus(),
+                new StripeCheckoutSessionResponse(
+                        payment.getId(),
+                        payment.getSandboxReference(),
+                        null,
+                        payment.getPaymentStatus()
+                )
+        );
+    }
+
+    public BookingCreatePaymentResponse cancelStripeUnlock(Long bookingId, String sessionId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new NotFoundException("Booking not found"));
+        if (booking.getStatus() != BookingStatus.PENDING) {
+            throw new BusinessException("Only pending Stripe bookings can be cancelled");
+        }
+
+        Payment payment = paymentRepository.findByBookingIdAndSandboxReference(bookingId, sessionId)
+                .orElseThrow(() -> new BusinessException("Stripe payment was not found for this booking"));
+
+        if (payment.getPaymentStatus() == PaymentStatus.SUCCESS) {
+            handleStripeRefundOrManualReview(payment);
+        } else if (payment.getPaymentStatus() == PaymentStatus.PENDING) {
+            payment.setPaymentStatus(PaymentStatus.CANCELLED);
+        }
+
+        cancelPendingBooking(booking);
+        bookingRepository.save(booking);
+        Payment savedPayment = paymentRepository.save(payment);
+
+        return new BookingCreatePaymentResponse(
+                BookingMapper.toResponse(booking),
+                BookingUnlockPaymentMethod.STRIPE,
+                savedPayment.getPaymentStatus(),
+                new StripeCheckoutSessionResponse(
+                        savedPayment.getId(),
+                        savedPayment.getSandboxReference(),
+                        null,
+                        savedPayment.getPaymentStatus()
+                )
+        );
     }
 
     public BookingResponse update(Long id, BookingUpdateRequest req) {
@@ -285,6 +369,41 @@ public class BookingService {
             return "eur";
         }
         return currency.trim().toLowerCase();
+    }
+
+    private void cancelExpiredPendingStripeReservation(Booking booking, Payment payment) {
+        cancelPendingBooking(booking);
+        if (payment.getPaymentStatus() == PaymentStatus.SUCCESS) {
+            handleStripeRefundOrManualReview(payment);
+        } else if (payment.getPaymentStatus() == PaymentStatus.PENDING) {
+            payment.setPaymentStatus(PaymentStatus.CANCELLED);
+        }
+        bookingRepository.save(booking);
+        paymentRepository.save(payment);
+    }
+
+    private void cancelPendingBooking(Booking booking) {
+        booking.setStatus(BookingStatus.CANCELLED);
+        Bike bike = booking.getBike();
+        if (bike.getStatus() == BikeStatus.BOOKED) {
+            bike.setStatus(BikeStatus.AVAILABLE);
+        }
+    }
+
+    private void handleStripeRefundOrManualReview(Payment payment) {
+        boolean refunded = stripeGateway.refundCheckoutSessionPayment(payment.getSandboxReference());
+        if (refunded) {
+            payment.setPaymentStatus(PaymentStatus.CANCELLED);
+            return;
+        }
+        String provider = payment.getProvider();
+        if (provider == null || provider.isBlank()) {
+            provider = "stripe";
+        }
+        if (!provider.contains(MANUAL_REVIEW_SUFFIX)) {
+            provider = provider + MANUAL_REVIEW_SUFFIX;
+        }
+        payment.setProvider(provider);
     }
 
     private void applyStatusChange(Booking booking, BookingStatus newStatus) {
