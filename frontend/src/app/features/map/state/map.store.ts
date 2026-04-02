@@ -7,11 +7,17 @@ import { BookingStatus } from '../../../shared/domain/booking.model';
 import { Station, StationWithAvailability } from '../../../shared/domain/station.model';
 import { calculateDistanceMeters } from '../../../shared/geo/distance';
 import { MapApi } from '../data-access/map-api';
-import { MapCoordinate, MapLoadSnapshot } from '../models/map.models';
+import { MapCoordinate, MapLoadSnapshot, MapStripePaymentReturnState } from '../models/map.models';
 
 const ACTIVE_OR_PENDING_BOOKING_STATUSES: BookingStatus[] = ['PENDING', 'ACTIVE'];
 const DOCK_OCCUPYING_BIKE_STATUSES: BikeStatus[] = ['AVAILABLE', 'BOOKED', 'MAINTENANCE'];
 const UNLOCK_DISTANCE_METERS = 150;
+const STRIPE_PENDING_UNLOCK_STORAGE_KEY = 'bikeshare.pendingUnlockStripeSession';
+
+type PendingStripeUnlockSession = {
+  bookingId: number;
+  sessionId: string;
+};
 
 @Injectable({
   providedIn: 'root',
@@ -27,6 +33,9 @@ export class MapStore {
   readonly allBikes = signal<Bike[]>([]);
   readonly availableBikes = signal<Bike[]>([]);
   readonly bookings = signal<MapLoadSnapshot['bookings']>([]);
+  readonly balance = signal(0);
+  readonly unlockFee = signal(0);
+  readonly paymentCurrency = signal('EUR');
   readonly userLocation = signal<MapCoordinate | null>(null);
 
   readonly activeBooking = computed(
@@ -128,6 +137,15 @@ export class MapStore {
   readonly canUnlock = computed(
     () => !this.hasActiveBooking() && this.nearestUnlockableStation() !== null,
   );
+  
+  readonly hasEnoughBalance = computed(() => this.balance() >= this.unlockFee() && this.unlockFee() > 0);
+  readonly canUnlockWithSaldo = computed(() => this.canUnlock() && this.hasEnoughBalance());
+  readonly walletDisabledMessage = computed(() => {
+    if (this.isReturnMode() || this.hasEnoughBalance()) {
+      return null;
+    }
+    return `Saldo insuficiente. Necesitas ${this.unlockFee().toFixed(2)} ${this.paymentCurrency()} para desbloquear.`;
+  });
 
   readonly canReturn = computed(
     () => this.isReturnMode() && this.nearestReturnStation() !== null,
@@ -165,7 +183,7 @@ export class MapStore {
       });
   }
 
-  unlockNearestBike(userId: number): void {
+  unlockNearestBikeWithSaldo(userId: number): void {
     if (this.isUnlocking() || this.isLoading()) {
       return;
     }
@@ -174,6 +192,12 @@ export class MapStore {
 
     if (this.hasActiveBooking()) {
       this.unlockMessage.set('ya tienes una bicicleta activa');
+      return;
+    }
+    if (!this.hasEnoughBalance()) {
+      this.unlockMessage.set(
+        `Saldo insuficiente. Necesitas ${this.unlockFee().toFixed(2)} ${this.paymentCurrency()} para desbloquear.`,
+      );
       return;
     }
 
@@ -196,9 +220,9 @@ export class MapStore {
         userId,
         bikeId: bike.id,
         expiryTime: null,
+        paymentMethod: 'SALDO',
       })
       .pipe(
-        switchMap((booking) => this.mapApi.activateBooking(booking.id)),
         switchMap(() => this.createLoadSnapshot$()),
         finalize(() => this.isUnlocking.set(false)),
       )
@@ -209,6 +233,108 @@ export class MapStore {
         },
         error: (error: unknown) => {
           this.unlockMessage.set(this.toErrorMessage(error, 'No se pudo desbloquear la bicicleta.'));
+        },
+      });
+  }
+
+  handleStripeReturn(paymentState: MapStripePaymentReturnState): void {
+    if (paymentState === null) {
+      this.loadInitialData();
+      return;
+    }
+
+    const pendingStripeSession = this.readPendingStripeUnlockSession();
+    if (pendingStripeSession === null) {
+      this.loadInitialData();
+      this.unlockMessage.set('No se encontro una reserva Stripe pendiente para procesar.');
+      return;
+    }
+
+    this.errorMessage.set(null);
+    this.isLoading.set(true);
+    this.unlockMessage.set(
+      paymentState === 'success' ? 'Confirmando pago y desbloqueo...' : 'Cancelando reserva pendiente...',
+    );
+
+    const action$ =
+      paymentState === 'success'
+        ? this.mapApi.finalizeStripeUnlock(pendingStripeSession.bookingId, pendingStripeSession)
+        : this.mapApi.cancelStripeUnlock(pendingStripeSession.bookingId, pendingStripeSession);
+
+    action$
+      .pipe(
+        switchMap(() => this.createLoadSnapshot$()),
+        finalize(() => this.isLoading.set(false)),
+      )
+      .subscribe({
+        next: (snapshot) => {
+          this.applySnapshot(snapshot);
+          this.clearPendingStripeUnlockSession();
+          this.unlockMessage.set(
+            paymentState === 'success'
+              ? 'Pago confirmado. Bicicleta desbloqueada correctamente.'
+              : 'Pago cancelado. Reserva liberada correctamente.',
+          );
+        },
+        error: (error: unknown) => {
+          this.unlockMessage.set(
+            this.toErrorMessage(
+              error,
+              paymentState === 'success'
+                ? 'No se pudo confirmar el desbloqueo con Stripe.'
+                : 'No se pudo cancelar la reserva Stripe.',
+            ),
+          );
+          this.loadInitialData();
+        },
+      });
+  }
+
+  unlockNearestBikeWithStripe(userId: number): void {
+    if (this.isUnlocking() || this.isLoading()) {
+      return;
+    }
+    this.unlockMessage.set(null);
+
+    const nearestStation = this.nearestUnlockableStation();
+    if (!nearestStation) {
+      this.unlockMessage.set('sin puestos cercanos, acercate mas');
+      return;
+    }
+
+    const bike = this.availableBikes().find((candidate) => candidate.stationId === nearestStation.id);
+    if (!bike) {
+      this.unlockMessage.set('No quedan bicis disponibles en la estacion seleccionada.');
+      return;
+    }
+
+    this.isUnlocking.set(true);
+    this.mapApi
+      .createBooking({
+        userId,
+        bikeId: bike.id,
+        expiryTime: null,
+        paymentMethod: 'STRIPE',
+      })
+      .pipe(finalize(() => this.isUnlocking.set(false)))
+      .subscribe({
+        next: (response) => {
+          const sessionId = response.stripe?.sessionId;
+          const checkoutUrl = response.stripe?.checkoutUrl;
+          const bookingId = response.booking.id;
+          if (!sessionId || !checkoutUrl) {
+            this.unlockMessage.set('No se pudo iniciar el pago con Stripe.');
+            return;
+          }
+
+          this.savePendingStripeUnlockSession({ bookingId, sessionId });
+
+          if (typeof window !== 'undefined') {
+            window.location.assign(checkoutUrl);
+          }
+        },
+        error: (error: unknown) => {
+          this.unlockMessage.set(this.toErrorMessage(error, 'No se pudo iniciar el desbloqueo con Stripe.'));
         },
       });
   }
@@ -273,6 +399,8 @@ export class MapStore {
       allBikes: this.mapApi.getAllBikes(),
       availableBikes: this.mapApi.getAvailableBikes(),
       bookings: this.mapApi.getMyBookings(),
+      me: this.mapApi.getMe(),
+      paymentConfig: this.mapApi.getPaymentConfig(),
     });
   }
 
@@ -281,6 +409,9 @@ export class MapStore {
     this.allBikes.set(snapshot.allBikes);
     this.availableBikes.set(snapshot.availableBikes);
     this.bookings.set(snapshot.bookings);
+    this.balance.set(snapshot.me.balance);
+    this.unlockFee.set(snapshot.paymentConfig.unlockFee);
+    this.paymentCurrency.set(snapshot.paymentConfig.currency.toUpperCase());
   }
 
   private toErrorMessage(error: unknown, fallback = 'No se pudieron cargar los datos del mapa.'): string {
@@ -297,6 +428,67 @@ export class MapStore {
         : null;
 
     return apiMessage ?? fallback;
+  }
+
+  private savePendingStripeUnlockSession(payload: PendingStripeUnlockSession): void {
+    const normalizedSessionId = payload.sessionId.trim();
+    if (!normalizedSessionId || !Number.isInteger(payload.bookingId) || payload.bookingId <= 0) {
+      return;
+    }
+
+    this.withSessionStorage((storage) => {
+      storage.setItem(
+        STRIPE_PENDING_UNLOCK_STORAGE_KEY,
+        JSON.stringify({ bookingId: payload.bookingId, sessionId: normalizedSessionId }),
+      );
+    });
+  }
+
+  private readPendingStripeUnlockSession(): PendingStripeUnlockSession | null {
+    let rawSessionData: string | null = null;
+    this.withSessionStorage((storage) => {
+      rawSessionData = storage.getItem(STRIPE_PENDING_UNLOCK_STORAGE_KEY);
+    });
+
+    if (!rawSessionData) {
+      return null;
+    }
+
+    try {
+      const parsed = JSON.parse(rawSessionData) as Partial<PendingStripeUnlockSession>;
+      const bookingId = parsed.bookingId;
+      const sessionId = parsed.sessionId;
+      if (
+        typeof sessionId !== 'string' ||
+        !sessionId.trim() ||
+        typeof bookingId !== 'number' ||
+        !Number.isInteger(bookingId) ||
+        bookingId <= 0
+      ) {
+        return null;
+      }
+      return { bookingId, sessionId: sessionId.trim() };
+    } catch {
+      return null;
+    }
+  }
+
+  private clearPendingStripeUnlockSession(): void {
+    this.withSessionStorage((storage) => {
+      storage.removeItem(STRIPE_PENDING_UNLOCK_STORAGE_KEY);
+    });
+  }
+
+  private withSessionStorage(action: (storage: Storage) => void): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    try {
+      action(window.sessionStorage);
+    } catch {
+      // Ignore browser storage failures (privacy mode, blocked storage, etc.)
+    }
   }
 
 }
