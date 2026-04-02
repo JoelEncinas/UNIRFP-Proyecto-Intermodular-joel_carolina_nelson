@@ -30,6 +30,7 @@ export class ProfilePage implements OnInit {
   readonly profileForm = this.profileStore.profileForm;
   readonly topUpForm = this.profileStore.topUpForm;
   readonly topUpAmounts = this.profileStore.topUpAmounts;
+  readonly paymentHistory = this.profileStore.paymentHistory;
   readonly userInitial = this.profileStore.userInitial;
 
   ngOnInit(): void {

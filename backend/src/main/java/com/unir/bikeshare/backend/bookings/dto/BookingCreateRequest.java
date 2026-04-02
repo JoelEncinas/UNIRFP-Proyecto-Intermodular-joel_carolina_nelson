@@ -7,5 +7,6 @@ import jakarta.validation.constraints.NotNull;
 public record BookingCreateRequest(
 		@NotNull Long userId,
         @NotNull Long bikeId,
-        Instant expiryTime
+        Instant expiryTime,
+        @NotNull BookingUnlockPaymentMethod paymentMethod
 		) {}

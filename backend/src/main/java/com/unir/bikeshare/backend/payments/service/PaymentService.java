@@ -25,7 +25,10 @@ import com.unir.bikeshare.backend.bookings.model.Booking;
 import com.unir.bikeshare.backend.bookings.repository.BookingRepository;
 import com.unir.bikeshare.backend.common.exception.BusinessException;
 import com.unir.bikeshare.backend.common.exception.NotFoundException;
+import com.unir.bikeshare.backend.payments.config.RentalPaymentProperties;
 import com.unir.bikeshare.backend.payments.config.StripeProperties;
+import com.unir.bikeshare.backend.payments.dto.PaymentConfigResponse;
+import com.unir.bikeshare.backend.payments.dto.PaymentCheckoutSessionCreateRequest;
 import com.unir.bikeshare.backend.payments.dto.PaymentCreateRequest;
 import com.unir.bikeshare.backend.payments.dto.PaymentResponse;
 import com.unir.bikeshare.backend.payments.dto.StripeCheckoutSessionCreateRequest;
@@ -53,19 +56,31 @@ public class PaymentService {
     private final BookingRepository bookingRepository;
     private final StripeGateway stripeGateway;
     private final StripeProperties stripeProperties;
+    private final RentalPaymentProperties rentalPaymentProperties;
 
     public PaymentService(
             PaymentRepository paymentRepository,
             UserRepository userRepository,
             BookingRepository bookingRepository,
             StripeGateway stripeGateway,
-            StripeProperties stripeProperties
+            StripeProperties stripeProperties,
+            RentalPaymentProperties rentalPaymentProperties
     ) {
         this.paymentRepository = paymentRepository;
         this.userRepository = userRepository;
         this.bookingRepository = bookingRepository;
         this.stripeGateway = stripeGateway;
         this.stripeProperties = stripeProperties;
+        this.rentalPaymentProperties = rentalPaymentProperties;
+    }
+
+    @Transactional(readOnly = true)
+    public PaymentConfigResponse getPaymentConfig() {
+        return new PaymentConfigResponse(
+                rentalPaymentProperties.getUnlockFee(),
+                normalizeCurrency(stripeProperties.getCurrency()),
+                STRIPE_MIN_TOP_UP_AMOUNT
+        );
     }
 
     @Transactional(readOnly = true)
@@ -155,6 +170,22 @@ public class PaymentService {
                 sessionData.sessionId(),
                 sessionData.checkoutUrl(),
                 saved.getPaymentStatus()
+        );
+    }
+
+    public StripeCheckoutSessionResponse createCheckoutSession(
+            PaymentCheckoutSessionCreateRequest req,
+            Long requesterUserId,
+            boolean requesterAdmin
+    ) {
+        if (req.transactionType() != TransactionType.TOP_UP) {
+            throw new BusinessException("Use booking unlock flow for rental payments");
+        }
+
+        return createStripeCheckoutSession(
+                new StripeCheckoutSessionCreateRequest(req.userId(), req.amount()),
+                requesterUserId,
+                requesterAdmin
         );
     }
 

@@ -5,6 +5,7 @@ import { Observable } from 'rxjs';
 import { API_BASE_URL } from '../../../core/config/api-base-url.token';
 import { buildApiUrl } from '../../../core/http/api-url';
 import {
+  ProfilePayment,
   StripeCheckoutSessionCancelRequest,
   ProfileUpdateRequest,
   ProfileUser,
@@ -23,6 +24,10 @@ export class ProfileApi {
     return this.http.get<ProfileUser>(buildApiUrl(this.apiBaseUrl, '/api/users/me'));
   }
 
+  getPayments(): Observable<ProfilePayment[]> {
+    return this.http.get<ProfilePayment[]>(buildApiUrl(this.apiBaseUrl, '/api/payments'));
+  }
+
   updateMe(payload: ProfileUpdateRequest): Observable<ProfileUser> {
     return this.http.put<ProfileUser>(buildApiUrl(this.apiBaseUrl, '/api/users/me'), payload);
   }
@@ -31,13 +36,13 @@ export class ProfileApi {
     payload: StripeCheckoutSessionCreateRequest,
   ): Observable<StripeCheckoutSessionResponse> {
     return this.http.post<StripeCheckoutSessionResponse>(
-      buildApiUrl(this.apiBaseUrl, '/api/payments/stripe/checkout-session'),
+      buildApiUrl(this.apiBaseUrl, '/api/payments/checkout-session'),
       payload,
     );
   }
 
   cancelStripeCheckoutSession(payload: StripeCheckoutSessionCancelRequest): Observable<void> {
-    return this.http.post<void>(buildApiUrl(this.apiBaseUrl, '/api/payments/stripe/cancel'), payload);
+    return this.http.post<void>(buildApiUrl(this.apiBaseUrl, '/api/payments/checkout-session/cancel'), payload);
   }
 
   deleteMe(): Observable<void> {

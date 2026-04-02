@@ -1,12 +1,12 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
-import { finalize } from 'rxjs';
+import { finalize, forkJoin } from 'rxjs';
 
 import { Auth } from '../../../core/auth/auth';
 import { getApiErrorMessage } from '../../../core/http/api-error-message';
 import { ProfileApi } from '../data-access/profile-api';
-import { ProfileUpdateRequest, ProfileUser } from '../models/profile.models';
+import { ProfilePayment, ProfileUpdateRequest, ProfileUser } from '../models/profile.models';
 
 export type EditableField = 'username' | 'email' | 'password';
 export type StripePaymentReturnState = 'success' | 'cancel' | null;
@@ -41,6 +41,7 @@ export class ProfileStore {
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
   readonly profile = signal<ProfileUser | null>(null);
+  readonly paymentHistory = signal<ProfilePayment[]>([]);
   readonly topUpAmounts = [5, 10, 20] as const;
 
   readonly isBusy = computed(
@@ -140,7 +141,7 @@ export class ProfileStore {
     this.topUpInProgress.set(true);
 
     this.profileApi
-      .createStripeCheckoutSession({ userId, amount })
+      .createStripeCheckoutSession({ userId, amount, transactionType: 'TOP_UP' })
       .pipe(finalize(() => this.topUpInProgress.set(false)))
       .subscribe({
         next: (response) => {
@@ -254,8 +255,7 @@ export class ProfileStore {
     }
     this.isDeleteConfirmationVisible.set(false);
 
-    this.profileApi
-      .getMe()
+    this.createProfileSnapshot$()
       .pipe(
         finalize(() => {
           if (!silentLoading || this.isLoading()) {
@@ -264,8 +264,10 @@ export class ProfileStore {
         }),
       )
       .subscribe({
-        next: (profile) => {
+        next: (snapshot) => {
+          const profile = snapshot.profile;
           this.profile.set(profile);
+          this.paymentHistory.set(this.toLatestPayments(snapshot.payments));
           this.profileForm.setValue({
             username: profile.username,
             email: profile.email,
@@ -283,6 +285,24 @@ export class ProfileStore {
           options?.onError?.();
         },
       });
+  }
+
+  private createProfileSnapshot$() {
+    return forkJoin({
+      profile: this.profileApi.getMe(),
+      payments: this.profileApi.getPayments(),
+    });
+  }
+
+  private toLatestPayments(payments: ProfilePayment[]): ProfilePayment[] {
+    return [...payments]
+      .sort((a, b) => this.toEpochMs(b.paymentDate) - this.toEpochMs(a.paymentDate))
+      .slice(0, 20);
+  }
+
+  private toEpochMs(value: string): number {
+    const parsed = Date.parse(value);
+    return Number.isNaN(parsed) ? 0 : parsed;
   }
 
   private refreshProfileAfterStripeSuccess(
