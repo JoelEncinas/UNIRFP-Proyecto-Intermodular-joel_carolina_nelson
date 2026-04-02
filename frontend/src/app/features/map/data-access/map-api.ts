@@ -7,7 +7,14 @@ import { buildApiUrl } from '../../../core/http/api-url';
 import { Bike } from '../../../shared/domain/bike.model';
 import { BookingSummary } from '../../../shared/domain/booking.model';
 import { Station } from '../../../shared/domain/station.model';
-import { CreateBookingRequest, ReturnBookingRequest } from '../models/map.models';
+import {
+  BookingCreatePaymentResponse,
+  BookingStripeSessionRequest,
+  CreateBookingRequest,
+  MapCurrentUser,
+  MapPaymentConfig,
+  ReturnBookingRequest,
+} from '../models/map.models';
 
 @Injectable({
   providedIn: 'root',
@@ -32,14 +39,35 @@ export class MapApi {
     return this.http.get<BookingSummary[]>(buildApiUrl(this.apiBaseUrl, '/api/bookings'));
   }
 
-  createBooking(payload: CreateBookingRequest): Observable<BookingSummary> {
-    return this.http.post<BookingSummary>(buildApiUrl(this.apiBaseUrl, '/api/bookings'), payload);
+  getMe(): Observable<MapCurrentUser> {
+    return this.http.get<MapCurrentUser>(buildApiUrl(this.apiBaseUrl, '/api/users/me'));
   }
 
-  activateBooking(bookingId: number): Observable<BookingSummary> {
-    return this.http.post<BookingSummary>(
-      buildApiUrl(this.apiBaseUrl, `/api/bookings/${bookingId}/activate`),
-      {},
+  getPaymentConfig(): Observable<MapPaymentConfig> {
+    return this.http.get<MapPaymentConfig>(buildApiUrl(this.apiBaseUrl, '/api/payments/config'));
+  }
+
+  createBooking(payload: CreateBookingRequest): Observable<BookingCreatePaymentResponse> {
+    return this.http.post<BookingCreatePaymentResponse>(buildApiUrl(this.apiBaseUrl, '/api/bookings'), payload);
+  }
+
+  finalizeStripeUnlock(
+    bookingId: number,
+    payload: BookingStripeSessionRequest,
+  ): Observable<BookingCreatePaymentResponse> {
+    return this.http.post<BookingCreatePaymentResponse>(
+      buildApiUrl(this.apiBaseUrl, `/api/bookings/${bookingId}/stripe/finalize`),
+      payload,
+    );
+  }
+
+  cancelStripeUnlock(
+    bookingId: number,
+    payload: BookingStripeSessionRequest,
+  ): Observable<BookingCreatePaymentResponse> {
+    return this.http.post<BookingCreatePaymentResponse>(
+      buildApiUrl(this.apiBaseUrl, `/api/bookings/${bookingId}/stripe/cancel`),
+      payload,
     );
   }
   

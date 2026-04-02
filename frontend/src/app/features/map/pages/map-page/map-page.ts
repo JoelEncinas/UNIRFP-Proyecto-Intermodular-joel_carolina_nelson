@@ -6,13 +6,14 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 
 import { Auth } from '../../../../core/auth/auth';
 import {
   GEOLOCATION_REQUEST_OPTIONS,
   getLocationErrorMessage,
 } from '../../../../shared/geo/location-errors';
+import { MapStripePaymentReturnState } from '../../models/map.models';
 import { MapStore } from '../../state/map.store';
 import { LeafletMap } from '../../ui/leaflet-map/leaflet-map';
 
@@ -26,6 +27,7 @@ import { LeafletMap } from '../../ui/leaflet-map/leaflet-map';
 export class MapPage implements OnInit {
   private readonly auth = inject(Auth);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
 
   readonly mapStore = inject(MapStore);
   readonly isLocating = signal(false);
@@ -51,7 +53,20 @@ export class MapPage implements OnInit {
   });
 
   ngOnInit(): void {
-    this.mapStore.loadInitialData();
+    const paymentQuery = this.route.snapshot.queryParamMap.get('payment');
+    const paymentState = this.toStripePaymentReturnState(paymentQuery);
+
+    this.mapStore.handleStripeReturn(paymentState);
+
+    if (paymentQuery !== null) {
+      void this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: { payment: null },
+        queryParamsHandling: 'merge',
+        replaceUrl: true,
+      });
+    }
+
     const stationId = this.parseStationId(this.route.snapshot.queryParamMap.get('stationId'));
     this.focusStationId.set(stationId);
     this.requestUserLocation(stationId === null);
@@ -84,7 +99,7 @@ export class MapPage implements OnInit {
     );
   }
 
-  onUnlockClick(): void {
+  onPrimaryActionClick(): void {
     if (
       this.mapStore.isLoading() ||
       this.mapStore.isUnlocking() ||
@@ -95,6 +110,11 @@ export class MapPage implements OnInit {
 
     if (this.mapStore.isReturnMode()) {
       this.mapStore.returnActiveBike();
+    }
+  }
+
+  onUnlockWithSaldoClick(): void {
+    if (this.mapStore.isLoading() || this.mapStore.isUnlocking() || !this.mapStore.canUnlock()) {
       return;
     }
 
@@ -104,7 +124,21 @@ export class MapPage implements OnInit {
       return;
     }
 
-    this.mapStore.unlockNearestBike(userId);
+    this.mapStore.unlockNearestBikeWithSaldo(userId);
+  }
+
+  onUnlockWithStripeClick(): void {
+    if (this.mapStore.isLoading() || this.mapStore.isUnlocking() || !this.mapStore.canUnlock()) {
+      return;
+    }
+
+    const userId = this.auth.getAuthenticatedUserId();
+    if (userId === null) {
+      this.locationMessage.set('Sesion no valida. Inicia sesion de nuevo.');
+      return;
+    }
+
+    this.mapStore.unlockNearestBikeWithStripe(userId);
   }
 
   private formatDistance(distanceMeters: number | null): string {
@@ -126,5 +160,15 @@ export class MapPage implements OnInit {
     }
 
     return parsed;
+  }
+
+  private toStripePaymentReturnState(paymentQuery: string | null): MapStripePaymentReturnState {
+    if (paymentQuery === 'success') {
+      return 'success';
+    }
+    if (paymentQuery === 'cancel') {
+      return 'cancel';
+    }
+    return null;
   }
 }

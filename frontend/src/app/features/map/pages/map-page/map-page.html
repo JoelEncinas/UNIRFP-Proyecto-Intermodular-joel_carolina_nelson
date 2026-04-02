@@ -33,6 +33,11 @@
           {{ message }}
         </p>
       }
+      @if (mapStore.walletDisabledMessage(); as walletMessage) {
+        <p class="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          {{ walletMessage }}
+        </p>
+      }
 
       @if (nearestStationSummary(); as summary) {
         <p class="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
@@ -52,15 +57,36 @@
         {{ isLocating() ? 'Detectando ubicacion...' : 'Actualizar ubicacion' }}
       </button>
 
-      <button
-        type="button"
-        class="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
-        data-testid="map-unlock-button"
-        [disabled]="mapStore.isLoading() || mapStore.isUnlocking() || !mapStore.canExecutePrimaryAction()"
-        (click)="onUnlockClick()"
-      >
-        {{ mapStore.isUnlocking() ? 'desbloqueando bicicleta...' : mapStore.unlockButtonLabel() }}
-      </button>
+      @if (mapStore.isReturnMode()) {
+        <button
+          type="button"
+          class="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+          data-testid="map-return-button"
+          [disabled]="mapStore.isLoading() || mapStore.isUnlocking() || !mapStore.canReturn()"
+          (click)="onPrimaryActionClick()"
+        >
+          {{ mapStore.isUnlocking() ? 'devolviendo bicicleta...' : 'Devolver bicicleta' }}
+        </button>
+      } @else {
+        <button
+          type="button"
+          class="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+          data-testid="map-unlock-wallet-button"
+          [disabled]="mapStore.isLoading() || mapStore.isUnlocking() || !mapStore.canUnlockWithSaldo()"
+          (click)="onUnlockWithSaldoClick()"
+        >
+          {{ mapStore.isUnlocking() ? 'desbloqueando...' : 'Unlock with saldo' }}
+        </button>
+        <button
+          type="button"
+          class="rounded-2xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+          data-testid="map-unlock-stripe-button"
+          [disabled]="mapStore.isLoading() || mapStore.isUnlocking() || !mapStore.canUnlock()"
+          (click)="onUnlockWithStripeClick()"
+        >
+          {{ mapStore.isUnlocking() ? 'redireccionando...' : 'Unlock with Stripe' }}
+        </button>
+      }
     </div>
   </section>
 
