@@ -75,7 +75,7 @@
           [disabled]="mapStore.isLoading() || mapStore.isUnlocking() || !mapStore.canUnlockWithSaldo()"
           (click)="onUnlockWithSaldoClick()"
         >
-          {{ mapStore.isUnlocking() ? 'desbloqueando...' : 'Unlock with saldo' }}
+          {{ mapStore.isUnlocking() ? 'desbloqueando...' : 'Desbloquear con saldo' }}
         </button>
         <button
           type="button"
@@ -84,7 +84,7 @@
           [disabled]="mapStore.isLoading() || mapStore.isUnlocking() || !mapStore.canUnlock()"
           (click)="onUnlockWithStripeClick()"
         >
-          {{ mapStore.isUnlocking() ? 'redireccionando...' : 'Unlock with Stripe' }}
+          {{ mapStore.isUnlocking() ? 'redireccionando...' : 'Desbloquear con Stripe' }}
         </button>
       }
     </div>

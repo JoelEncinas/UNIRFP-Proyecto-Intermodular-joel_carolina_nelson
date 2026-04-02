@@ -26,7 +26,7 @@ export class SidePanel {
   readonly links: SidePanelLink[] = [
     { label: 'Mapa', path: '/app/map' },
     { label: 'Estaciones', path: '/app/stations' },
-    { label: 'Historial', path: '/app/history' },
+    { label: 'Historial de reservas', path: '/app/history' },
     { label: 'Perfil', path: '/app/profile' },
     { label: 'Terminos y Condiciones', path: '/app/terms' },
   ];

@@ -3,7 +3,7 @@
     <p class="m-0 text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Perfil</p>
     <h1 class="mt-1 text-2xl font-bold text-slate-900">Gestion de cuenta</h1>
     <p class="mt-1 text-sm text-slate-600">
-      Puedes actualizar username, email o contrasena de forma individual o guardar todo junto.
+      Puedes actualizar usuario, correo o contrasena de forma individual o guardar todo junto.
     </p>
   </header>
 
@@ -66,7 +66,7 @@
 
         <form class="grid gap-4" [formGroup]="profileForm" (ngSubmit)="updateAll()">
           <div class="grid gap-1">
-            <label class="text-sm font-semibold text-slate-800" for="profile-username">Username</label>
+            <label class="text-sm font-semibold text-slate-800" for="profile-username">Usuario</label>
             <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
               <input
                 id="profile-username"
@@ -81,7 +81,7 @@
                 [disabled]="isBusy()"
                 (click)="updateField('username')"
               >
-                Guardar username
+                Guardar usuario
               </button>
             </div>
           </div>
@@ -145,7 +145,7 @@
         <section>
           <h2 class="text-base font-semibold text-slate-900">Recargar saldo</h2>
           <p class="mt-1 text-sm text-slate-600">
-            Selecciona un importe o introduce uno personalizado para continuar en Stripe Checkout.
+            Selecciona un importe o introduce uno personalizado para continuar al pago con Stripe.
           </p>
 
           <div class="mt-3 flex flex-wrap gap-2">
@@ -186,7 +186,7 @@
               @if (topUpInProgress()) {
                 Redirigiendo a Stripe...
               } @else {
-                Continuar con Stripe Checkout
+                Continuar con pago de Stripe
               }
             </button>
           </form>

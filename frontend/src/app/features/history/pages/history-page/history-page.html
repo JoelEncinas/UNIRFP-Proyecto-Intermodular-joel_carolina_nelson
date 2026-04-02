@@ -1,6 +1,6 @@
 <section class="mx-auto w-full max-w-5xl" data-testid="history-page-root">
   <header class="ui-surface mb-4 px-5 py-4">
-    <p class="m-0 text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Historial</p>
+    <p class="m-0 text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Historial de reservas</p>
     <h1 class="mt-1 text-2xl font-bold text-slate-900">Tus ultimas reservas</h1>
     <p class="mt-1 text-sm text-slate-600">
       Consulta bici, estaciones y tiempos de cada viaje.
@@ -77,21 +77,6 @@
               </dd>
             </div>
 
-            <div>
-              <dt class="font-semibold text-slate-700">Creada</dt>
-              <dd class="text-slate-500">{{ booking.startTime | date: 'dd/MM/yyyy HH:mm' }}</dd>
-            </div>
-
-            <div>
-              <dt class="font-semibold text-slate-700">Caducidad</dt>
-              <dd class="text-slate-500">
-                @if (booking.expiryTime) {
-                  {{ booking.expiryTime | date: 'dd/MM/yyyy HH:mm' }}
-                } @else {
-                  Sin limite
-                }
-              </dd>
-            </div>
           </dl>
         </article>
       }
