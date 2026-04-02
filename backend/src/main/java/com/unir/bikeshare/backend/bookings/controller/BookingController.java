@@ -19,9 +19,11 @@ import com.unir.bikeshare.backend.bookings.dto.BookingCreateRequest;
 import com.unir.bikeshare.backend.bookings.dto.BookingCreatePaymentResponse;
 import com.unir.bikeshare.backend.bookings.dto.BookingReturnRequest;
 import com.unir.bikeshare.backend.bookings.dto.BookingResponse;
+import com.unir.bikeshare.backend.bookings.dto.BookingStripeSessionRequest;
 import com.unir.bikeshare.backend.bookings.dto.BookingUpdateRequest;
 import com.unir.bikeshare.backend.bookings.model.BookingStatus;
 import com.unir.bikeshare.backend.bookings.service.BookingService;
+import com.unir.bikeshare.backend.common.exception.BusinessException;
 import com.unir.bikeshare.backend.security.CurrentUserAccessService;
 import com.unir.bikeshare.backend.users.dto.UserResponse;
 
@@ -79,6 +81,32 @@ public class BookingController {
             currentUserAccessService.ensureUserOwnsResource(authentication, req.userId());
         }
         return bookingService.create(req);
+    }
+
+    @PostMapping("/{bookingId}/stripe/finalize")
+    public BookingCreatePaymentResponse finalizeStripeUnlock(
+            @PathVariable Long bookingId,
+            @RequestBody @Valid BookingStripeSessionRequest req,
+            Authentication authentication
+    ) {
+        if (!Objects.equals(bookingId, req.bookingId())) {
+            throw new BusinessException("Path booking id and payload booking id must match");
+        }
+        ensureCanAccessBooking(authentication, bookingService.getById(bookingId));
+        return bookingService.finalizeStripeUnlock(req.bookingId(), req.sessionId());
+    }
+
+    @PostMapping("/{bookingId}/stripe/cancel")
+    public BookingCreatePaymentResponse cancelStripeUnlock(
+            @PathVariable Long bookingId,
+            @RequestBody @Valid BookingStripeSessionRequest req,
+            Authentication authentication
+    ) {
+        if (!Objects.equals(bookingId, req.bookingId())) {
+            throw new BusinessException("Path booking id and payload booking id must match");
+        }
+        ensureCanAccessBooking(authentication, bookingService.getById(bookingId));
+        return bookingService.cancelStripeUnlock(req.bookingId(), req.sessionId());
     }
 
     @PutMapping("/{id}")

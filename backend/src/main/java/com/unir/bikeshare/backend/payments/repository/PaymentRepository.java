@@ -11,6 +11,7 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
 	List<Payment> findByUserId(Long userId);
 
     List<Payment> findByBookingId(Long bookingId);
+    Optional<Payment> findByBookingIdAndSandboxReference(Long bookingId, String sandboxReference);
 
     Optional<Payment> findBySandboxReference(String sandboxReference);
 }
