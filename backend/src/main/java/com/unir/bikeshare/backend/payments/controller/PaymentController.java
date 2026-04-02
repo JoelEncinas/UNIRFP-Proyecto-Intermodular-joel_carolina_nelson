@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.unir.bikeshare.backend.payments.dto.PaymentConfigResponse;
+import com.unir.bikeshare.backend.payments.dto.PaymentCheckoutSessionCreateRequest;
 import com.unir.bikeshare.backend.payments.dto.PaymentResponse;
 import com.unir.bikeshare.backend.payments.dto.StripeCheckoutSessionCancelRequest;
 import com.unir.bikeshare.backend.payments.dto.StripeCheckoutSessionCreateRequest;
@@ -92,8 +93,33 @@ public class PaymentController {
         return paymentService.createStripeCheckoutSession(req, currentUser.id(), isAdmin);
     }
 
+    @PostMapping("/checkout-session")
+    @ResponseStatus(HttpStatus.CREATED)
+    public StripeCheckoutSessionResponse createCheckoutSession(
+            @RequestBody @Valid PaymentCheckoutSessionCreateRequest req,
+            Authentication authentication
+    ) {
+        boolean isAdmin = currentUserAccessService.isAdmin(authentication);
+        UserResponse currentUser = currentUserAccessService.getCurrentUser(authentication);
+        if (!isAdmin) {
+            currentUserAccessService.ensureUserOwnsResource(authentication, req.userId());
+        }
+        return paymentService.createCheckoutSession(req, currentUser.id(), isAdmin);
+    }
+
     @PostMapping("/stripe/cancel")
     public ResponseEntity<Void> cancelStripeCheckoutSession(
+            @RequestBody @Valid StripeCheckoutSessionCancelRequest req,
+            Authentication authentication
+    ) {
+        boolean isAdmin = currentUserAccessService.isAdmin(authentication);
+        UserResponse currentUser = currentUserAccessService.getCurrentUser(authentication);
+        paymentService.cancelStripeCheckoutSession(req.sessionId(), currentUser.id(), isAdmin);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/checkout-session/cancel")
+    public ResponseEntity<Void> cancelCheckoutSession(
             @RequestBody @Valid StripeCheckoutSessionCancelRequest req,
             Authentication authentication
     ) {
