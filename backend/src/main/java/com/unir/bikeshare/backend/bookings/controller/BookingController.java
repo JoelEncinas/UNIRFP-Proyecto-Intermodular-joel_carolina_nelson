@@ -21,7 +21,6 @@ import com.unir.bikeshare.backend.bookings.dto.BookingReturnRequest;
 import com.unir.bikeshare.backend.bookings.dto.BookingResponse;
 import com.unir.bikeshare.backend.bookings.dto.BookingStripeSessionRequest;
 import com.unir.bikeshare.backend.bookings.dto.BookingUpdateRequest;
-import com.unir.bikeshare.backend.bookings.model.BookingStatus;
 import com.unir.bikeshare.backend.bookings.service.BookingService;
 import com.unir.bikeshare.backend.common.exception.BusinessException;
 import com.unir.bikeshare.backend.security.CurrentUserAccessService;
@@ -115,22 +114,6 @@ public class BookingController {
         return bookingService.update(id, req);
     }
 
-    // Endpoints expresivos
-    
-    //cambiar reserva a activa
-    @PostMapping("/{id}/activate")
-    public BookingResponse activate(@PathVariable Long id, Authentication authentication) {
-        ensureCanAccessBooking(authentication, bookingService.getById(id));
-        return bookingService.update(id, new BookingUpdateRequest(BookingStatus.ACTIVE, null));
-    }
-
-    //cambiar reserva a cancelada
-    @PostMapping("/{id}/cancel")
-    public BookingResponse cancel(@PathVariable Long id, Authentication authentication) {
-        ensureCanAccessBooking(authentication, bookingService.getById(id));
-        return bookingService.update(id, new BookingUpdateRequest(BookingStatus.CANCELLED, null));
-    }
-    
     @PostMapping("/{id}/return")
     public BookingResponse returnBike(
             @PathVariable Long id,

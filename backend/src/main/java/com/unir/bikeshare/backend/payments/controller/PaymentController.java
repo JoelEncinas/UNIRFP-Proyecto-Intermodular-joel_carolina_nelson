@@ -16,7 +16,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.unir.bikeshare.backend.payments.dto.PaymentCreateRequest;
 import com.unir.bikeshare.backend.payments.dto.PaymentConfigResponse;
 import com.unir.bikeshare.backend.payments.dto.PaymentResponse;
 import com.unir.bikeshare.backend.payments.dto.StripeCheckoutSessionCancelRequest;
@@ -77,17 +76,6 @@ public class PaymentController {
         PaymentResponse payment = paymentService.getById(id);
         currentUserAccessService.ensureUserOwnsResource(authentication, payment.userId());
         return payment;
-    }
-
-    @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    public PaymentResponse create(@RequestBody @Valid PaymentCreateRequest req, Authentication authentication) {
-        boolean isAdmin = currentUserAccessService.isAdmin(authentication);
-        UserResponse currentUser = currentUserAccessService.getCurrentUser(authentication);
-        if (!isAdmin) {
-            currentUserAccessService.ensureUserOwnsResource(authentication, req.userId());
-        }
-        return paymentService.create(req, currentUser.id(), isAdmin);
     }
 
     @PostMapping("/stripe/checkout-session")
