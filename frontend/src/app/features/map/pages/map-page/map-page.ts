@@ -46,8 +46,8 @@ export class MapPage implements OnInit {
 
     const prefix = this.mapStore.isReturnMode() ? 'Devolucion cercana' : 'Estacion cercana';
     const availabilityText = this.mapStore.isReturnMode()
-      ? `${station.availableDocks} ${station.availableDocks === 1 ? 'hueco' : 'huecos'} disponible`
-      : `${station.availableBikes} ${station.availableBikes === 1 ? 'bici' : 'bicis'} disponible`;
+      ? `${station.availableDocks} ${station.availableDocks === 1 ? 'hueco disponible' : 'huecos disponibles'}`
+      : `${station.availableBikes} ${station.availableBikes === 1 ? 'bici disponible' : 'bicis disponibles'}`;
 
     return `${prefix}: ${station.name} - ${this.formatDistance(station.distanceMeters)} - ${availabilityText}`;
   });

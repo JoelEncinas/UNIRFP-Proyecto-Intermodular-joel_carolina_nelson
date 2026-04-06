@@ -18,3 +18,7 @@ npm start
 Abre `http://localhost:4200` en el navegador.  Usuario de prueba: `rider001 / asdasd`.
 
 Nota: en desarrollo, el frontend espera la API backend en `http://localhost:8080`.
+
+Para permitir pagos:
+
+`stripe listen --forward-to http://localhost:8080/api/payments/stripe/webhook`

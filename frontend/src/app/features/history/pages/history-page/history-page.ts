@@ -43,6 +43,10 @@ export class HistoryPage implements OnInit {
     return booking.activatedAt ?? booking.startTime;
   }
 
+  bookingTitle(booking: BookingSummary): string {
+    return `R${booking.id}-B${booking.bikeId}`;
+  }
+
   statusLabel(status: BookingStatus): string {
     switch (status) {
       case 'PENDING':
@@ -88,6 +92,21 @@ export class HistoryPage implements OnInit {
   private toTimelinePoint(booking: BookingSummary): number {
     const candidate = booking.returnedAt ?? booking.activatedAt ?? booking.startTime;
     return new Date(candidate).getTime();
+  }
+
+  private normalizeBikeType(bikeModel: string): string {
+    const compact = bikeModel.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    if (compact.includes('city1')) {
+      return 'city1';
+    }
+
+    if (compact.includes('city2')) {
+      return 'city2';
+    }
+
+    const fallback = bikeModel.trim().toLowerCase();
+    return fallback === '' ? 'bici' : fallback;
   }
 
   private toErrorMessage(error: unknown): string {

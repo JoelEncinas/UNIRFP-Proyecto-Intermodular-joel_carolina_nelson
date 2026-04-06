@@ -22,6 +22,10 @@ export class StationsPage implements OnInit {
   readonly proximityFilterEnabled = this.stationsStore.proximityFilterEnabled;
   readonly stations = this.stationsStore.stations;
   readonly filteredStations = this.stationsStore.filteredStations;
+  readonly hasUserLocation = this.stationsStore.hasUserLocation;
+  readonly stationsWithBikesNowCount = this.stationsStore.stationsWithBikesNowCount;
+  readonly stationsWithFreeDocksCount = this.stationsStore.stationsWithFreeDocksCount;
+  readonly stationsWithinFiveMinWalkCount = this.stationsStore.stationsWithinFiveMinWalkCount;
 
   ngOnInit(): void {
     this.stationsStore.loadInitialData();

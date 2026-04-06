@@ -168,7 +168,7 @@ export class ProfileStore {
       return;
     }
 
-    this.applyUpdate(payload, field, `Campo ${field} actualizado.`);
+    this.applyUpdate(payload, field, `Campo ${this.toEditableFieldLabel(field)} actualizado.`);
   }
 
   updateAll(): void {
@@ -422,6 +422,17 @@ export class ProfileStore {
 
   private toErrorMessage(error: unknown, fallback: string): string {
     return getApiErrorMessage(error) ?? fallback;
+  }
+
+  private toEditableFieldLabel(field: EditableField): string {
+    switch (field) {
+      case 'username':
+        return 'usuario';
+      case 'email':
+        return 'correo';
+      case 'password':
+        return 'contrasena';
+    }
   }
 
   private normalizeAmount(amount: number): number {

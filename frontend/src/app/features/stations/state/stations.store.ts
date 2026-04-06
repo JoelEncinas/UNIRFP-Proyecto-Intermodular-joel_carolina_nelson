@@ -18,6 +18,7 @@ interface StationListItem extends Station {
 }
 
 const PROXIMITY_RADIUS_METERS = 1000;
+const FIVE_MIN_WALK_METERS = 400;
 
 @Injectable()
 export class StationsStore {
@@ -33,6 +34,7 @@ export class StationsStore {
   readonly userLocation = signal<GeoCoordinate | null>(null);
   readonly stations = signal<Station[]>([]);
   readonly availableBikes = signal<Bike[]>([]);
+  readonly hasUserLocation = computed(() => this.userLocation() !== null);
 
   readonly stationsWithDetails = computed<StationListItem[]>(() => {
     const countsByStation = this.toAvailableBikeCountByStation(this.availableBikes());
@@ -69,6 +71,24 @@ export class StationsStore {
     }
 
     return entries;
+  });
+
+  readonly stationsWithBikesNowCount = computed(
+    () => this.stationsWithDetails().filter((station) => station.availableBikes > 0).length,
+  );
+
+  readonly stationsWithFreeDocksCount = computed(
+    () => this.stationsWithDetails().filter((station) => station.capacity > station.availableBikes).length,
+  );
+
+  readonly stationsWithinFiveMinWalkCount = computed<number | null>(() => {
+    if (!this.hasUserLocation()) {
+      return null;
+    }
+
+    return this.stationsWithDetails().filter(
+      (station) => station.distanceMeters !== null && station.distanceMeters <= FIVE_MIN_WALK_METERS,
+    ).length;
   });
 
   loadInitialData(): void {

@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/cor
 import { ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 
+import { ProfilePaymentStatus } from '../../models/profile.models';
 import { EditableField, ProfileStore, StripePaymentReturnState } from '../../state/profile.store';
 
 @Component({
@@ -80,6 +81,33 @@ export class ProfilePage implements OnInit {
 
   startStripeTopUp(): void {
     this.profileStore.startStripeTopUp();
+  }
+
+  paymentProviderLabel(provider: string | null): string {
+    if (provider === null || provider.trim() === '') {
+      return 'stripe';
+    }
+
+    const trimmedProvider = provider.trim();
+
+    if (trimmedProvider.toLowerCase() === 'wallet') {
+      return 'saldo';
+    }
+
+    return trimmedProvider;
+  }
+
+  paymentStatusLabel(status: ProfilePaymentStatus): string {
+    switch (status) {
+      case 'PENDING':
+        return 'Pendiente';
+      case 'SUCCESS':
+        return 'Completado';
+      case 'FAILED':
+        return 'Fallido';
+      case 'CANCELLED':
+        return 'Cancelado';
+    }
   }
 
   private toStripePaymentReturnState(paymentQuery: string | null): StripePaymentReturnState {
