@@ -42,7 +42,7 @@
         <article class="ui-surface p-4">
           <div class="flex flex-wrap items-center justify-between gap-2">
             <h2 class="text-base font-semibold text-slate-900">
-              Reserva #{{ booking.id }} · Bici #{{ booking.bikeId }} ({{ booking.bikeModel }})
+              {{ bookingTitle(booking) }}
             </h2>
             <span
               class="inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.07em]"

@@ -214,12 +214,12 @@
                         {{ payment.transactionType === 'TOP_UP' ? 'Recarga de saldo' : 'Pago de desbloqueo' }}
                       </p>
                       <p class="text-xs text-slate-500">
-                        {{ payment.paymentDate | date: 'dd/MM/yyyy HH:mm' }} · {{ payment.provider || 'stripe' }}
+                        {{ payment.paymentDate | date: 'dd/MM/yyyy HH:mm' }} &middot; {{ paymentProviderLabel(payment.provider) }}
                       </p>
                     </div>
                     <div class="text-right">
                       <p class="text-sm font-semibold text-slate-900">{{ payment.amount | number: '1.2-2' }} EUR</p>
-                      <p class="text-xs text-slate-600">{{ payment.paymentStatus }}</p>
+                      <p class="text-xs text-slate-600">{{ paymentStatusLabel(payment.paymentStatus) }}</p>
                     </div>
                   </div>
                 </li>
